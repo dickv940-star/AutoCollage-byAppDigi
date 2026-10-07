@@ -593,7 +593,48 @@ function createCanvasState() {
     return { canvas, widthCm, heightCm, dpi, widthPx, heightPx };
 }
 
-function drawPhoto(ctx,item,x,y,w,h){if(!item.source.image)return;ctx.filter="none";ctx.imageSmoothingEnabled=true;const img=item.source.image;if(item.source.crop){const c=item.source.crop;ctx.drawImage(img,c.x,c.y,c.width,c.height,x,y,w,h);return;}const sr=img.naturalWidth/img.naturalHeight,tr=w/h;let dw,dh;if(sr>tr){dw=w;dh=w/sr}else{dh=h;dw=h*sr}ctx.drawImage(img,x+(w-dw)/2,y+(h-dh)/2,dw,dh)}
+function drawPhoto(ctx,item,x,y,w,h){
+    if(!item.source.image)return;
+
+    ctx.filter="none";
+    ctx.imageSmoothingEnabled=true;
+
+    const img=item.source.image;
+    const c=item.source.crop;
+
+    if(c && c.canvas){
+        const iw=img.naturalWidth;
+        const ih=img.naturalHeight;
+
+        // CROP CANVAS:
+        // foto asli tidak dipotong/diedit. Kita hanya membuat
+        // frame/canvas tempat foto ditempatkan lalu melakukan
+        // clipping pada area tujuan.
+        const cover=Math.max(w/iw,h/ih);
+        const scale=cover*(Number(c.zoom)||1);
+        const dw=iw*scale;
+        const dh=ih*scale;
+
+        const cx=Math.max(0,Math.min(1,Number(c.centerX)||0.5));
+        const cy=Math.max(0,Math.min(1,Number(c.centerY)||0.5));
+
+        const dx=x+w/2-(cx*dw);
+        const dy=y+h/2-(cy*dh);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x,y,w,h);
+        ctx.clip();
+        ctx.drawImage(img,dx,dy,dw,dh);
+        ctx.restore();
+        return;
+    }
+
+    const sr=iw=img.naturalWidth/img.naturalHeight,tr=w/h;
+    let dw,dh;
+    if(sr>tr){dw=w;dh=w/sr}else{dh=h;dw=h*sr}
+    ctx.drawImage(img,x+(w-dw)/2,y+(h-dh)/2,dw,dh);
+}
 function renderCollage() {
     if (!state.canvas) return;
 
@@ -899,19 +940,37 @@ function openCrop(item){
 
     state.crop.item=item;
     state.crop.aspect=item.width/item.height;
-    state.crop.zoom=1;
+
+    const saved=item.crop?.canvas;
+    state.crop.zoom=Number(saved?.zoom)||1;
     state.crop.imageOffsetX=0;
     state.crop.imageOffsetY=0;
 
-    cropTitle.textContent="Crop Foto #"+item.id;
+    cropTitle.textContent="Canvas Foto #"+item.id;
     cropSubtitle.textContent=item.name+" · "+item.sizeKey;
-    cropRatioLabel.textContent="Rasio cetak: "+item.width+" × "+item.height+" cm";
-    cropZoom.value="1";
+    cropRatioLabel.textContent="Canvas: "+item.width+" × "+item.height+" cm";
+    cropZoom.value=String(state.crop.zoom);
 
     cropModal.classList.remove("hidden");
 
     requestAnimationFrame(()=>{
         cropInitSelection();
+
+        if(saved){
+            const d=cropDisplay();
+            const sel=state.crop.selectionStage;
+            const iw=item.image.naturalWidth;
+            const ih=item.image.naturalHeight;
+
+            const targetCx=(Number(saved.centerX)||0.5)*iw;
+            const targetCy=(Number(saved.centerY)||0.5)*ih;
+            const selCx=sel.x+sel.width/2;
+            const selCy=sel.y+sel.height/2;
+
+            state.crop.imageOffsetX=(selCx-d.left)/d.scale-targetCx;
+            state.crop.imageOffsetY=(selCy-d.top)/d.scale-targetCy;
+        }
+
         cropClampImage();
         cropSourceRectFromSelection();
         cropRender();
@@ -1057,9 +1116,28 @@ function cropToggleOrientation(){
 function saveCrop(){
     if(!state.crop.item||!cropHasSelection)return;
 
-    cropSourceRectFromSelection();
+    const d=state.crop.display;
+    const sel=state.crop.selectionStage;
+    const ox=state.crop.imageOffsetX||0;
+    const oy=state.crop.imageOffsetY||0;
+    const iw=state.crop.item.image.naturalWidth;
+    const ih=state.crop.item.image.naturalHeight;
 
-    state.crop.item.crop={...state.crop.sourceRect};
+    // Simpan posisi foto di dalam CANVAS, bukan potongan sumber foto.
+    const imageLeft=d.left+ox*d.scale;
+    const imageTop=d.top+oy*d.scale;
+    const centerX=((sel.x+sel.width/2)-imageLeft)/d.scale;
+    const centerY=((sel.y+sel.height/2)-imageTop)/d.scale;
+
+    state.crop.item.crop={
+        canvas:{
+            width:state.crop.item.width,
+            height:state.crop.item.height
+        },
+        zoom:Number(state.crop.zoom)||1,
+        centerX:Math.max(0,Math.min(1,centerX/iw)),
+        centerY:Math.max(0,Math.min(1,centerY/ih))
+    };
 
     closeCrop();
     renderPairs();
