@@ -1019,3 +1019,72 @@ if (exportBtn) {
 
 updateInfo();
 setZoom(state.zoom);
+
+
+
+/* =========================================================
+   APP BACKGROUND COLOR
+========================================================= */
+
+const appBgColor = document.querySelector("#appBgColor");
+const appBgColorText = document.querySelector("#appBgColorText");
+
+function normalizeHex(value) {
+    const v = String(value || "").trim();
+    return /^#[0-9a-fA-F]{6}$/.test(v) ? v.toUpperCase() : null;
+}
+
+function applyAppBackground(color) {
+    const hex = normalizeHex(color) || "#EEF1F4";
+
+    document.documentElement.style.setProperty(
+        "--app-bg",
+        hex
+    );
+
+    document.body.style.backgroundColor = hex;
+
+    const workspace = document.querySelector(".workspace");
+    const canvasArea = document.querySelector(".canvas-workspace");
+
+    if (workspace) workspace.style.backgroundColor = hex;
+    if (canvasArea) canvasArea.style.backgroundColor = hex;
+
+    if (appBgColor && appBgColor.value !== hex) {
+        appBgColor.value = hex;
+    }
+
+    if (appBgColorText && appBgColorText.value !== hex) {
+        appBgColorText.value = hex;
+    }
+
+    try {
+        localStorage.setItem("autocollage-app-bg", hex);
+    } catch {}
+}
+
+if (appBgColor) {
+    appBgColor.addEventListener("input", () => {
+        applyAppBackground(appBgColor.value);
+    });
+}
+
+if (appBgColorText) {
+    appBgColorText.addEventListener("input", () => {
+        const hex = normalizeHex(appBgColorText.value);
+        if (hex) applyAppBackground(hex);
+    });
+
+    appBgColorText.addEventListener("change", () => {
+        applyAppBackground(appBgColorText.value);
+    });
+}
+
+let savedAppBg = null;
+
+try {
+    savedAppBg = localStorage.getItem("autocollage-app-bg");
+} catch {}
+
+applyAppBackground(savedAppBg || "#EEF1F4");
+
