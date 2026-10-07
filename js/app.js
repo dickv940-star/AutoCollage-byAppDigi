@@ -1067,31 +1067,30 @@ function saveCrop(){
     if(state.generated)renderCollage();
 }
 
-if(cropCanvas){
-    cropCanvas.addEventListener("pointerdown",cropStartImage);
-}
-
-if(cropSelection){
-    cropSelection.addEventListener("pointerdown",e=>{
-        if(e.target.classList.contains("crop-handle"))return;
-        cropStartImage(e);
-    });
-
-    cropSelection.querySelectorAll(".crop-handle").forEach(handle=>{
-        handle.addEventListener("pointerdown",e=>{
-            const cls=[...handle.classList].find(x=>x.startsWith("crop-handle-"));
-            if(cls)cropStartResize(e,cls.replace("crop-handle-",""));
-        });
-    });
-}
-
 if(cropStage){
+    cropStage.addEventListener("pointerdown",e=>{
+        const handle=e.target.closest(".crop-handle");
+        if(handle){
+            const cls=[...handle.classList].find(x=>x.startsWith("crop-handle-"));
+            if(cls){
+                cropStartResize(e,cls.replace("crop-handle-",""));
+                return;
+            }
+        }
+
+        if(e.target.closest("#cropSelection") || e.target===cropCanvas || e.target===cropStage){
+            cropStartImage(e);
+        }
+    });
+
     cropStage.addEventListener("pointermove",e=>{
         if(state.crop.resizing)cropMoveResize(e);
         else if(state.crop.movingImage)cropMoveImage(e);
     });
+
     cropStage.addEventListener("pointerup",cropEnd);
     cropStage.addEventListener("pointercancel",cropEnd);
+    cropStage.addEventListener("lostpointercapture",cropEnd);
 }
 
 if(cropZoom){
