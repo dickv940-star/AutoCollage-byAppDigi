@@ -630,7 +630,7 @@ function drawPhoto(ctx,item,x,y,w,h){
         return;
     }
 
-    const sr=iw=img.naturalWidth/img.naturalHeight,tr=w/h;
+    const sr=img.naturalWidth/img.naturalHeight,tr=w/h;
     let dw,dh;
     if(sr>tr){dw=w;dh=w/sr}else{dh=h;dw=h*sr}
     ctx.drawImage(img,x+(w-dw)/2,y+(h-dh)/2,dw,dh);
