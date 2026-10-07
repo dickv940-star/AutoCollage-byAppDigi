@@ -949,11 +949,11 @@ if (zoomInBtn) {
         "click",
         () => setZoom(state.zoom + 0.1)
     );
+}
 
 /* =========================================================
    EVENTS
 ========================================================= */
-}
 
 if (fileInput) {
     fileInput.addEventListener("change", e => {
