@@ -1,49 +1,19 @@
 /* =========================================================
-   AUTO COLLAGE V1
-   ---------------------------------------------------------
-   Prinsip:
-   1. File sumber tidak pernah diubah.
-   2. Foto dijodohkan berdasarkan ID/nama.
-   3. Ukuran foto dibaca dari nama file.
-   4. Layout hanya menentukan posisi foto.
-========================================================= */
+   AUTO COLLAGE - APPDIGI
+   V2 - PRINT SAFE LAYOUT ENGINE
+   ========================================================= */
 
-
-"use strict";
-
-
-/* =========================================================
-   GLOBAL STATE
-========================================================= */
+const MAX_IDS = 10;
+const MAX_FILES = 20;
 
 const state = {
-
     files: [],
-
-    photos: [],
-
-    pairs: {},
-
-    sizes: {},
-
+    groups: new Map(),
+    sizes: new Map(),
     placements: [],
-
-    zoom: 0.5,
-
-    canvasWidthCm: 30,
-
-    canvasHeightCm: 40,
-
-    dpi: 300,
-
-    marginCm: 0.5,
-
-    gapCm: 0.3,
-
-    autoSpacing: true,
-
-    keepAspect: true
-
+    canvas: null,
+    zoom: 1,
+    generated: false
 };
 
 
@@ -51,819 +21,423 @@ const state = {
    DOM
 ========================================================= */
 
-const canvas =
-    document.getElementById("collageCanvas");
+const $ = (selector) => document.querySelector(selector);
 
-const ctx =
-    canvas.getContext("2d");
+const fileInput = $("#fileInput");
+const fileList = $("#fileList");
+const sizeList = $("#sizeList");
 
+const canvasWidth = $("#canvasWidth");
+const canvasHeight = $("#canvasHeight");
+const dpiInput = $("#dpi");
 
-const canvasWrapper =
-    document.getElementById("canvasWrapper");
+const marginInput = $("#margin");
+const gapInput = $("#gap");
 
-const photoInput =
-    document.getElementById("photoInput");
+const autoSpacing = $("#autoSpacing");
+const keepAspect = $("#keepAspect");
 
-const pairList =
-    document.getElementById("pairList");
+const generateBtn = $("#generateBtn");
+const shuffleBtn = $("#shuffleBtn");
+const resetBtn = $("#resetBtn");
 
-const sizeControls =
-    document.getElementById("sizeControls");
+const previewCanvas = $("#previewCanvas");
 
-const fileWarning =
-    document.getElementById("fileWarning");
+const zoomRange = $("#zoomRange");
+const zoomValue = $("#zoomValue");
 
-const photoCounter =
-    document.getElementById("photoCounter");
+const exportBtn = $("#exportBtn");
 
-const systemStatus =
-    document.getElementById("systemStatus");
+const pixelOutput = $("#pixelOutput");
+const ratioOutput = $("#ratioOutput");
 
-const pixelInfo =
-    document.getElementById("pixelInfo");
-
-const canvasRatio =
-    document.getElementById("canvasRatio");
-
-const previewInfo =
-    document.getElementById("previewInfo");
-
-const canvasSizeInfo =
-    document.getElementById("canvasSizeInfo");
-
-const resolutionInfo =
-    document.getElementById("resolutionInfo");
-
-const placedCount =
-    document.getElementById("placedCount");
-
-const layoutStatus =
-    document.getElementById("layoutStatus");
-
-const zoomValue =
-    document.getElementById("zoomValue");
+const statusText = $("#statusText");
+const photoCount = $("#photoCount");
+const canvasInfo = $("#canvasInfo");
+const resolutionInfo = $("#resolutionInfo");
 
 
 /* =========================================================
-   UTILITY
+   BASIC HELPERS
 ========================================================= */
 
-function cmToPx(cm) {
+function cmToPx(cm, dpi) {
+    return (Number(cm) * Number(dpi)) / 2.54;
+}
 
-    return Math.round(
-        cm * state.dpi / 2.54
-    );
+function pxToCm(px, dpi) {
+    return (Number(px) * 2.54) / Number(dpi);
+}
 
+function cleanNumber(value, fallback = 0) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : fallback;
+}
+
+function escapeHtml(value) {
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
 }
 
 
-function normalizeName(name) {
+/* =========================================================
+   FILENAME PARSER
+=========================================================
 
-    return name
+   Contoh:
+
+   DSCF1123 2x3.jpg
+   DSCF1123 3x4.jpg
+   001 2x3.jpg
+   Andi 2x3.jpg
+
+   Hasil:
+
+   ID       : DSCF1123
+   SIZE     : 2x3
+========================================================= */
+
+function parseFilename(filename) {
+
+    const name = filename
         .replace(/\.[^/.]+$/, "")
         .trim();
 
-}
-
-
-function normalizeId(name) {
-
-    let value =
-        normalizeName(name);
-
-    /*
-     * Hapus ukuran dari nama.
-     *
-     * Contoh:
-     *
-     * DSCF1123 2x3
-     * ->
-     * DSCF1123
-     */
-
-    value =
-        value.replace(
-            /\s*\d+(?:[.,]\d+)?\s*x\s*\d+(?:[.,]\d+)?\s*$/i,
-            ""
-        );
-
-    value =
-        value.replace(
-            /[_-]\s*\d+(?:[.,]\d+)?\s*x\s*\d+(?:[.,]\d+)?\s*$/i,
-            ""
-        );
-
-    return value.trim();
-
-}
-
-
-function detectSize(name) {
-
-    const match =
-        normalizeName(name).match(
-            /(\d+(?:[.,]\d+)?)\s*x\s*(\d+(?:[.,]\d+)?)/i
-        );
-
-    if (!match) {
-
-        return null;
-
-    }
-
-    const width =
-        parseFloat(
-            match[1].replace(",", ".")
-        );
-
-    const height =
-        parseFloat(
-            match[2].replace(",", ".")
-        );
-
-    if (
-        !Number.isFinite(width) ||
-        !Number.isFinite(height)
-    ) {
-
-        return null;
-
-    }
-
-    return {
-
-        width,
-
-        height,
-
-        label:
-            `${formatNumber(width)}×${formatNumber(height)}`
-
-    };
-
-}
-
-
-function formatNumber(value) {
-
-    return Number.isInteger(value)
-        ? String(value)
-        : String(value).replace(".", ",");
-
-}
-
-
-function gcd(a, b) {
-
-    a = Math.abs(a);
-
-    b = Math.abs(b);
-
-    while (b) {
-
-        const temp = b;
-
-        b = a % b;
-
-        a = temp;
-
-    }
-
-    return a || 1;
-
-}
-
-
-function ratioText(width, height) {
-
-    const divisor =
-        gcd(
-            Math.round(width),
-            Math.round(height)
-        );
-
-    return (
-        Math.round(width / divisor) +
-        ":" +
-        Math.round(height / divisor)
+    const match = name.match(
+        /(?:^|\s)(\d+(?:[.,]\d+)?)\s*[xX×]\s*(\d+(?:[.,]\d+)?)\s*$/
     );
 
+    if (!match) {
+        return {
+            valid: false,
+            id: name,
+            width: null,
+            height: null,
+            sizeKey: null
+        };
+    }
+
+    const width = Number(match[1].replace(",", "."));
+    const height = Number(match[2].replace(",", "."));
+
+    const id = name
+        .slice(0, match.index + match[0].length)
+        .replace(match[0], "")
+        .trim();
+
+    return {
+        valid: true,
+        id,
+        width,
+        height,
+        sizeKey: `${width}x${height}`
+    };
 }
 
 
 /* =========================================================
-   IMAGE LOADING
+   FILE LOADING
 ========================================================= */
 
 function loadImage(file) {
 
-    return new Promise(
-        (resolve, reject) => {
+    return new Promise((resolve, reject) => {
 
-            const url =
-                URL.createObjectURL(file);
+        const img = new Image();
 
-            const img =
-                new Image();
+        const url = URL.createObjectURL(file);
 
-            img.onload = () => {
+        img.onload = () => {
 
-                /*
-                 * Jangan ubah file.
-                 *
-                 * Object URL hanya digunakan
-                 * untuk membaca gambar.
-                 */
+            URL.revokeObjectURL(url);
 
-                resolve({
-
-                    img,
-
-                    url
-
-                });
-
-            };
-
-            img.onerror = reject;
-
-            img.src = url;
-
-        }
-    );
-
-}
-
-
-/* =========================================================
-   INPUT CANVAS
-========================================================= */
-
-document
-    .getElementById("canvasWidth")
-    .addEventListener(
-        "input",
-        updateCanvasSettings
-    );
-
-
-document
-    .getElementById("canvasHeight")
-    .addEventListener(
-        "input",
-        updateCanvasSettings
-    );
-
-
-document
-    .getElementById("dpi")
-    .addEventListener(
-        "input",
-        updateCanvasSettings
-    );
-
-
-document
-    .getElementById("margin")
-    .addEventListener(
-        "input",
-        () => {
-
-            state.marginCm =
-                getNumber(
-                    "margin",
-                    0.5
-                );
-
-        }
-    );
-
-
-document
-    .getElementById("gap")
-    .addEventListener(
-        "input",
-        () => {
-
-            state.gapCm =
-                getNumber(
-                    "gap",
-                    0.3
-                );
-
-        }
-    );
-
-
-document
-    .getElementById("autoSpacing")
-    .addEventListener(
-        "change",
-        event => {
-
-            state.autoSpacing =
-                event.target.checked;
-
-        }
-    );
-
-
-document
-    .getElementById("keepAspect")
-    .addEventListener(
-        "change",
-        event => {
-
-            state.keepAspect =
-                event.target.checked;
-
-        }
-    );
-
-
-function getNumber(id, fallback) {
-
-    const element =
-        document.getElementById(id);
-
-    const value =
-        parseFloat(element.value);
-
-    return Number.isFinite(value)
-        ? value
-        : fallback;
-
-}
-
-
-function updateCanvasSettings() {
-
-    state.canvasWidthCm =
-        getNumber(
-            "canvasWidth",
-            30
-        );
-
-    state.canvasHeightCm =
-        getNumber(
-            "canvasHeight",
-            40
-        );
-
-    state.dpi =
-        getNumber(
-            "dpi",
-            300
-        );
-
-    updateCanvasInfo();
-
-    renderCanvas();
-
-}
-
-
-/* =========================================================
-   CANVAS INFORMATION
-========================================================= */
-
-function updateCanvasInfo() {
-
-    const widthPx =
-        cmToPx(
-            state.canvasWidthCm
-        );
-
-    const heightPx =
-        cmToPx(
-            state.canvasHeightCm
-        );
-
-    pixelInfo.textContent =
-        `${widthPx} × ${heightPx} px`;
-
-    canvasRatio.textContent =
-        ratioText(
-            state.canvasWidthCm,
-            state.canvasHeightCm
-        );
-
-    previewInfo.textContent =
-        `${formatNumber(state.canvasWidthCm)} × ${formatNumber(state.canvasHeightCm)} cm`;
-
-    canvasSizeInfo.textContent =
-        `${formatNumber(state.canvasWidthCm)} × ${formatNumber(state.canvasHeightCm)} cm`;
-
-    resolutionInfo.textContent =
-        `${state.dpi} DPI`;
-
-    /*
-     * Untuk preview browser,
-     * kita tidak perlu menampilkan
-     * canvas pada ukuran asli 300 DPI.
-     *
-     * Preview menggunakan ukuran yang lebih kecil.
-     */
-
-    const maxPreview =
-        1000;
-
-    const scale =
-        Math.min(
-            maxPreview / widthPx,
-            maxPreview / heightPx,
-            1
-        );
-
-    canvasWrapper.style.width =
-        `${widthPx * scale * state.zoom / state.zoom}px`;
-
-    canvasWrapper.style.height =
-        `${heightPx * scale * state.zoom / state.zoom}px`;
-
-}
-
-
-/* =========================================================
-   UPLOAD
-========================================================= */
-
-photoInput.addEventListener(
-    "change",
-    async event => {
-
-        const incoming =
-            Array.from(
-                event.target.files
-            );
-
-        await addFiles(incoming);
-
-        photoInput.value = "";
-
-    }
-);
-
-
-async function addFiles(files) {
-
-    if (!files.length) {
-
-        return;
-
-    }
-
-
-    const existingNames =
-        new Set(
-            state.files.map(
-                file =>
-                    file.name.toLowerCase()
-            )
-        );
-
-
-    const newFiles =
-        files.filter(
-            file =>
-                !existingNames.has(
-                    file.name.toLowerCase()
-                )
-        );
-
-
-    if (
-        state.files.length +
-        newFiles.length >
-        20
-    ) {
-
-        showWarning(
-            "Maksimal 20 file foto.",
-            true
-        );
-
-        return;
-
-    }
-
-
-    const combined =
-        [
-            ...state.files,
-            ...newFiles
-        ];
-
-
-    state.files =
-        combined;
-
-
-    await processFiles();
-
-}
-
-
-/* =========================================================
-   PROCESS FILES
-========================================================= */
-
-async function processFiles() {
-
-    state.photos = [];
-
-    state.pairs = {};
-
-    const uniqueIds =
-        new Set();
-
-
-    for (
-        const file of state.files
-    ) {
-
-        const size =
-            detectSize(
-                file.name
-            );
-
-        const id =
-            normalizeId(
-                file.name
-            );
-
-
-        if (!id) {
-
-            continue;
-
-        }
-
-
-        uniqueIds.add(
-            id.toLowerCase()
-        );
-
-
-        if (
-            uniqueIds.size >
-            10
-        ) {
-
-            showWarning(
-                "Maksimal 10 foto/ID berbeda.",
-                true
-            );
-
-            /*
-             * Hentikan pemrosesan
-             * file ke-11 dan seterusnya.
-             */
-
-            break;
-
-        }
-
-
-        const photo = {
-
-            file,
-
-            id,
-
-            size,
-
-            image: null,
-
-            url: null,
-
-            originalWidth: 0,
-
-            originalHeight: 0
+            resolve({
+                img,
+                width: img.naturalWidth,
+                height: img.naturalHeight
+            });
 
         };
 
+        img.onerror = () => {
 
-        try {
+            URL.revokeObjectURL(url);
 
-            const loaded =
-                await loadImage(file);
+            reject(new Error(`Gagal membaca ${file.name}`));
 
-            photo.image =
-                loaded.img;
+        };
 
-            photo.url =
-                loaded.url;
+        img.src = url;
 
-            photo.originalWidth =
-                loaded.img.naturalWidth;
-
-            photo.originalHeight =
-                loaded.img.naturalHeight;
-
-        }
-        catch (error) {
-
-            console.error(
-                "Gagal membaca:",
-                file.name,
-                error
-            );
-
-        }
-
-
-        state.photos.push(
-            photo
-        );
-
-
-        const key =
-            id.toLowerCase();
-
-
-        if (!state.pairs[key]) {
-
-            state.pairs[key] = {
-
-                id,
-
-                files: {},
-
-                photos: {}
-
-            };
-
-        }
-
-
-        if (size) {
-
-            const sizeKey =
-                size.label
-                    .replace("×", "x");
-
-
-            state.pairs[key]
-                .files[sizeKey] =
-                file;
-
-            state.pairs[key]
-                .photos[sizeKey] =
-                photo;
-
-        }
-
-    }
-
-
-    buildSizeControls();
-
-    renderPairs();
-
-    updateCounter();
-
-    showWarning("");
-
-    renderCanvas();
+    });
 
 }
 
 
 /* =========================================================
-   PAIR RENDER
+   PROCESS UPLOAD
 ========================================================= */
 
-function renderPairs() {
+async function processFiles(fileArray) {
 
-    pairList.innerHTML = "";
+    const files = Array.from(fileArray);
 
-    const pairKeys =
-        Object.keys(
-            state.pairs
+    if (files.length > MAX_FILES) {
+
+        alert(
+            `Maksimal ${MAX_FILES} file.\n` +
+            `Artinya maksimal 10 pasangan foto.`
         );
 
+    }
 
-    if (!pairKeys.length) {
+    const limitedFiles = files.slice(0, MAX_FILES);
 
-        pairList.innerHTML = `
+    state.files = [];
+    state.groups.clear();
+    state.sizes.clear();
+    state.placements = [];
+    state.generated = false;
+
+    for (const file of limitedFiles) {
+
+        const parsed = parseFilename(file.name);
+
+        const item = {
+            file,
+            name: file.name,
+            ...parsed,
+            image: null,
+            naturalWidth: 0,
+            naturalHeight: 0
+        };
+
+        try {
+
+            const loaded = await loadImage(file);
+
+            item.image = loaded.img;
+            item.naturalWidth = loaded.width;
+            item.naturalHeight = loaded.height;
+
+        } catch (error) {
+
+            item.error = true;
+
+        }
+
+        state.files.push(item);
+
+    }
+
+    buildGroups();
+
+    renderFileList();
+
+    renderSizeControls();
+
+    updateCanvasInfo();
+
+}
+
+
+/* =========================================================
+   GROUP BY ID
+========================================================= */
+
+function buildGroups() {
+
+    state.groups.clear();
+
+    for (const item of state.files) {
+
+        if (!item.valid) {
+            continue;
+        }
+
+        if (!state.groups.has(item.id)) {
+
+            state.groups.set(item.id, {
+                id: item.id,
+                files: new Map()
+            });
+
+        }
+
+        const group = state.groups.get(item.id);
+
+        /*
+         * Jangan overwrite file dengan size sama.
+         * File pertama tetap digunakan.
+         */
+
+        if (!group.files.has(item.sizeKey)) {
+
+            group.files.set(item.sizeKey, item);
+
+        }
+
+        if (!state.sizes.has(item.sizeKey)) {
+
+            state.sizes.set(item.sizeKey, {
+                key: item.sizeKey,
+                width: item.width,
+                height: item.height
+            });
+
+        }
+
+    }
+
+}
+
+
+/* =========================================================
+   FILE LIST UI
+========================================================= */
+
+function renderFileList() {
+
+    if (!fileList) return;
+
+    if (!state.files.length) {
+
+        fileList.innerHTML = `
             <div class="empty-state">
-                Belum ada foto
+                Belum ada foto.
             </div>
         `;
 
         return;
+    }
+
+    let html = "";
+
+    for (const group of state.groups.values()) {
+
+        const sizes = Array.from(group.files.keys());
+
+        const available = sizes.length;
+
+        const expected = state.sizes.size;
+
+        let status = "";
+
+        if (available === expected) {
+
+            status = `
+                <span class="pair-ok">
+                    ✓ Pasangan lengkap
+                </span>
+            `;
+
+        } else {
+
+            status = `
+                <span class="pair-warning">
+                    ⚠ Pasangan belum lengkap
+                </span>
+            `;
+
+        }
+
+        html += `
+            <div class="file-group">
+
+                <div class="file-group-header">
+
+                    <strong>
+                        ${escapeHtml(group.id)}
+                    </strong>
+
+                    ${status}
+
+                </div>
+
+                <div class="file-group-files">
+        `;
+
+        for (const size of state.sizes.keys()) {
+
+            const item = group.files.get(size);
+
+            if (item) {
+
+                html += `
+                    <div class="file-row file-present">
+                        <span>✓</span>
+                        <span>${escapeHtml(item.name)}</span>
+                    </div>
+                `;
+
+            } else {
+
+                html += `
+                    <div class="file-row file-missing">
+                        <span>⚠</span>
+                        <span>
+                            ${escapeHtml(group.id)} ${escapeHtml(size)}.jpg
+                            — belum ada
+                        </span>
+                    </div>
+                `;
+
+            }
+
+        }
+
+        html += `
+                </div>
+
+            </div>
+        `;
 
     }
 
+    /*
+     * File dengan nama tidak valid
+     */
 
-    pairKeys.forEach(
-        key => {
+    const invalidFiles = state.files.filter(
+        item => !item.valid
+    );
 
-            const pair =
-                state.pairs[key];
+    if (invalidFiles.length) {
 
+        html += `
+            <div class="invalid-files">
 
-            const sizes =
-                Object.keys(
-                    pair.files
-                );
+                <strong>
+                    ⚠ File belum dikenali
+                </strong>
 
+        `;
 
-            const has2x3 =
-                Boolean(
-                    pair.files["2x3"]
-                );
+        for (const item of invalidFiles) {
 
-            const has3x4 =
-                Boolean(
-                    pair.files["3x4"]
-                );
-
-
-            const complete =
-                has2x3 &&
-                has3x4;
-
-
-            const element =
-                document.createElement(
-                    "div"
-                );
-
-            element.className =
-                "pair-item";
-
-
-            element.innerHTML = `
-
-                <div class="pair-head">
-
-                    <span class="pair-id">
-                        ${escapeHtml(pair.id)}
-                    </span>
-
-                    <span class="pair-status ${
-                        complete
-                            ? "complete"
-                            : "incomplete"
-                    }">
-
-                        ${
-                            complete
-                                ? "Lengkap"
-                                : "Tidak lengkap"
-                        }
-
-                    </span>
-
+            html += `
+                <div>
+                    ${escapeHtml(item.name)}
+                    <small>
+                        Gunakan format:
+                        Nama 2x3.jpg
+                    </small>
                 </div>
-
-
-                <div class="pair-files">
-
-                    <div class="pair-file ${
-                        has2x3
-                            ? "available"
-                            : "missing"
-                    }">
-
-                        2×3 :
-                        ${
-                            has2x3
-                                ? "✓"
-                                : "—"
-                        }
-
-                    </div>
-
-
-                    <div class="pair-file ${
-                        has3x4
-                            ? "available"
-                            : "missing"
-                    }">
-
-                        3×4 :
-                        ${
-                            has3x4
-                                ? "✓"
-                                : "—"
-                        }
-
-                    </div>
-
-                </div>
-
             `;
 
-
-            pairList.appendChild(
-                element
-            );
-
         }
-    );
+
+        html += `
+            </div>
+        `;
+
+    }
+
+    fileList.innerHTML = html;
 
 }
 
@@ -872,390 +446,157 @@ function renderPairs() {
    SIZE CONTROLS
 ========================================================= */
 
-function buildSizeControls() {
+function renderSizeControls() {
 
-    sizeControls.innerHTML = "";
+    if (!sizeList) return;
 
-    const sizeMap = {};
+    sizeList.innerHTML = "";
 
+    for (const size of state.sizes.values()) {
 
-    state.photos.forEach(
-        photo => {
+        /*
+         * Default quantity = jumlah source yang tersedia.
+         */
 
-            if (!photo.size) {
+        let availableCount = 0;
 
-                return;
+        for (const group of state.groups.values()) {
 
+            if (group.files.has(size.key)) {
+                availableCount++;
             }
-
-
-            const key =
-                photo.size.label
-                    .replace("×", "x");
-
-
-            if (!sizeMap[key]) {
-
-                sizeMap[key] = {
-
-                    width:
-                        photo.size.width,
-
-                    height:
-                        photo.size.height,
-
-                    count: 0
-
-                };
-
-            }
-
-
-            sizeMap[key].count++;
 
         }
-    );
 
+        const row = document.createElement("div");
 
-    const sizes =
-        Object.keys(
-            sizeMap
-        );
+        row.className = "size-row";
 
-
-    if (!sizes.length) {
-
-        sizeControls.innerHTML = `
-            <div class="empty-state small">
-                Ukuran tidak ditemukan
-                dari nama file.
+        row.innerHTML = `
+            <div class="size-name">
+                ${escapeHtml(size.key)}
             </div>
+
+            <div class="size-description">
+                ${size.width} × ${size.height} cm
+            </div>
+
+            <input
+                type="number"
+                min="0"
+                step="1"
+                value="${availableCount}"
+                data-size="${escapeHtml(size.key)}"
+                class="size-quantity"
+            >
         `;
 
-        return;
+        sizeList.appendChild(row);
 
     }
 
-
-    sizes.sort(
-        (a, b) => {
-
-            const aw =
-                sizeMap[a].width *
-                sizeMap[a].height;
-
-            const bw =
-                sizeMap[b].width *
-                sizeMap[b].height;
-
-            return aw - bw;
-
-        }
-    );
+}
 
 
-    sizes.forEach(
-        key => {
+/* =========================================================
+   READ QUANTITIES
+========================================================= */
 
-            if (
-                state.sizes[key] === undefined
-            ) {
+function getQuantities() {
 
-                state.sizes[key] =
-                    sizeMap[key].count;
+    const result = new Map();
 
-            }
+    document
+        .querySelectorAll(".size-quantity")
+        .forEach(input => {
 
+            const size = input.dataset.size;
 
-            const row =
-                document.createElement(
-                    "div"
-                );
-
-            row.className =
-                "size-row";
-
-
-            row.innerHTML = `
-
-                <div>
-
-                    <div class="size-name">
-                        ${key.replace("x", "×")} cm
-                    </div>
-
-                    <div class="size-source">
-                        ${
-                            sizeMap[key].count
-                        } file tersedia
-                    </div>
-
-                </div>
-
-
-                <input
-                    type="number"
-                    min="0"
-                    max="1000"
-                    value="${
-                        state.sizes[key]
-                    }"
-                    data-size="${key}"
-                >
-
-            `;
-
-
-            const input =
-                row.querySelector(
-                    "input"
-                );
-
-
-            input.addEventListener(
-                "input",
-                event => {
-
-                    state.sizes[key] =
-                        Math.max(
-                            0,
-                            parseInt(
-                                event.target.value ||
-                                "0",
-                                10
-                            )
-                        );
-
-                }
+            const quantity = Math.max(
+                0,
+                Math.floor(
+                    cleanNumber(input.value, 0)
+                )
             );
 
+            result.set(size, quantity);
 
-            sizeControls.appendChild(
-                row
-            );
+        });
 
-        }
-    );
+    return result;
 
 }
 
 
 /* =========================================================
-   COUNTER
+   CREATE PRINT QUEUE
+=========================================================
+
+   IMPORTANT:
+
+   Jika quantity lebih banyak daripada jumlah source,
+   source boleh diulang.
+
+   Tetapi:
+
+   SOURCE SELALU berasal dari ID yang benar.
+
+   Tidak pernah mengambil foto ID lain.
 ========================================================= */
 
-function updateCounter() {
+function createPrintQueue() {
 
-    const unique =
-        new Set(
-            state.photos.map(
-                photo =>
-                    photo.id.toLowerCase()
-            )
-        );
-
-
-    photoCounter.textContent =
-        `${state.files.length} / 20`;
-
-
-    if (unique.size > 10) {
-
-        showWarning(
-            "Lebih dari 10 ID foto ditemukan.",
-            true
-        );
-
-    }
-
-}
-
-
-/* =========================================================
-   WARNING
-========================================================= */
-
-function showWarning(
-    message,
-    error = false
-) {
-
-    if (!message) {
-
-        fileWarning.classList.add(
-            "hidden"
-        );
-
-        fileWarning.textContent = "";
-
-        return;
-
-    }
-
-
-    fileWarning.classList.remove(
-        "hidden"
-    );
-
-
-    fileWarning.classList.toggle(
-        "error",
-        error
-    );
-
-
-    fileWarning.textContent =
-        message;
-
-}
-
-
-/* =========================================================
-   ESCAPE HTML
-========================================================= */
-
-function escapeHtml(value) {
-
-    return String(value)
-        .replace(
-            /&/g,
-            "&amp;"
-        )
-        .replace(
-            /</g,
-            "&lt;"
-        )
-        .replace(
-            />/g,
-            "&gt;"
-        )
-        .replace(
-            /"/g,
-            "&quot;"
-        )
-        .replace(
-            /'/g,
-            "&#039;"
-        );
-
-}
-
-
-/* =========================================================
-   PHOTO SELECTION
-========================================================= */
-
-function getPhotosForSize(
-    sizeKey
-) {
-
-    return state.photos.filter(
-        photo => {
-
-            if (!photo.size) {
-
-                return false;
-
-            }
-
-
-            const key =
-                photo.size.label
-                    .replace("×", "x");
-
-
-            return key === sizeKey;
-
-        }
-    );
-
-}
-
-
-/* =========================================================
-   CREATE PHOTO QUEUE
-========================================================= */
-
-function createPhotoQueue() {
+    const quantities = getQuantities();
 
     const queue = [];
 
-    const sizes =
-        Object.keys(
-            state.sizes
-        );
+    for (const [sizeKey, quantity] of quantities.entries()) {
 
+        if (quantity <= 0) {
+            continue;
+        }
 
-    sizes.forEach(
-        sizeKey => {
+        const available = [];
 
-            const requested =
-                Number(
-                    state.sizes[sizeKey]
-                ) || 0;
+        for (const group of state.groups.values()) {
 
+            const source = group.files.get(sizeKey);
 
-            if (requested <= 0) {
+            if (source) {
 
-                return;
-
-            }
-
-
-            const available =
-                getPhotosForSize(
-                    sizeKey
-                );
-
-
-            if (!available.length) {
-
-                return;
-
-            }
-
-
-            /*
-             * Kalau jumlah yang diminta
-             * lebih banyak dari foto sumber,
-             * kita mengulang foto berdasarkan
-             * ID yang tersedia.
-             *
-             * Ini berguna untuk kebutuhan
-             * cetak foto identitas.
-             */
-
-            for (
-                let i = 0;
-                i < requested;
-                i++
-            ) {
-
-                const photo =
-                    available[
-                        i % available.length
-                    ];
-
-
-                queue.push({
-
-                    photo,
-
-                    widthCm:
-                        photo.size.width,
-
-                    heightCm:
-                        photo.size.height,
-
-                    sizeKey
-
+                available.push({
+                    group,
+                    source
                 });
 
             }
 
         }
-    );
 
+        if (!available.length) {
+
+            throw new Error(
+                `Tidak ada foto ${sizeKey} yang valid.`
+            );
+
+        }
+
+        for (let i = 0; i < quantity; i++) {
+
+            const selected =
+                available[i % available.length];
+
+            queue.push({
+                id: selected.group.id,
+                sizeKey,
+                source: selected.source,
+                widthCm: selected.source.width,
+                heightCm: selected.source.height
+            });
+
+        }
+
+    }
 
     return queue;
 
@@ -1263,640 +604,582 @@ function createPhotoQueue() {
 
 
 /* =========================================================
-   LAYOUT ENGINE
+   EXACT PHOTO DIMENSIONS
 ========================================================= */
 
-function generateLayout() {
-
-    const queue =
-        createPhotoQueue();
-
-
-    state.placements = [];
-
-
-    if (!queue.length) {
-
-        placedCount.textContent =
-            "0";
-
-        layoutStatus.textContent =
-            "Belum ada foto";
-
-        return;
-
-    }
-
-
-    const margin =
-        state.marginCm;
-
-
-    const gap =
-        state.gapCm;
-
-
-    const availableWidth =
-        state.canvasWidthCm -
-        margin * 2;
-
-
-    const availableHeight =
-        state.canvasHeightCm -
-        margin * 2;
-
-
-    /*
-     * Kita membuat baris berdasarkan
-     * kombinasi ukuran foto.
-     *
-     * Algoritma sederhana V1:
-     *
-     * - foto besar didahulukan
-     * - foto dengan tinggi sama
-     *   diusahakan satu baris
-     * - kalau penuh, pindah baris
-     */
-
-
-    queue.sort(
-        (a, b) => {
-
-            const areaA =
-                a.widthCm *
-                a.heightCm;
-
-            const areaB =
-                b.widthCm *
-                b.heightCm;
-
-            return areaB - areaA;
-
-        }
-    );
-
-
-    let x = margin;
-
-    let y = margin;
-
-    let rowHeight = 0;
-
-
-    queue.forEach(
-        item => {
-
-            let width =
-                item.widthCm;
-
-            let height =
-                item.heightCm;
-
-
-            /*
-             * Kalau foto tidak muat
-             * di baris sekarang,
-             * pindahkan ke baris berikutnya.
-             */
-
-            if (
-                x !== margin &&
-                x +
-                width >
-                state.canvasWidthCm -
-                margin
-            ) {
-
-                x = margin;
-
-                y +=
-                    rowHeight +
-                    gap;
-
-                rowHeight = 0;
-
-            }
-
-
-            /*
-             * Kalau tinggi melebihi
-             * area canvas, tetap letakkan
-             * tetapi beri status overflow.
-             */
-
-            const placement = {
-
-                photo:
-                    item.photo,
-
-                x,
-
-                y,
-
-                widthCm:
-                    width,
-
-                heightCm:
-                    height,
-
-                sizeKey:
-                    item.sizeKey,
-
-                overflow:
-                    false
-
-            };
-
-
-            if (
-                y +
-                height >
-                state.canvasHeightCm -
-                margin
-            ) {
-
-                placement.overflow =
-                    true;
-
-            }
-
-
-            state.placements.push(
-                placement
-            );
-
-
-            x +=
-                width +
-                gap;
-
-
-            rowHeight =
-                Math.max(
-                    rowHeight,
-                    height
-                );
-
-        }
-    );
-
-
-    /*
-     * AUTO SPACING
-     *
-     * Jika aktif, kita mencoba
-     * mendistribusikan baris secara
-     * lebih proporsional.
-     */
-
-    if (
-        state.autoSpacing
-    ) {
-
-        optimizeRows();
-
-    }
-
-
-    placedCount.textContent =
-        String(
-            state.placements.length
-        );
-
-
-    layoutStatus.textContent =
-        state.placements.some(
-            item =>
-                item.overflow
-        )
-            ? "Canvas penuh"
-            : "Berhasil";
-
-
-    renderCanvas();
+function getPhotoDimensions(item, dpi) {
+
+    return {
+        widthPx: cmToPx(item.widthCm, dpi),
+        heightPx: cmToPx(item.heightCm, dpi)
+    };
 
 }
 
 
 /* =========================================================
-   AUTO ROW OPTIMIZER
+   PACKING ENGINE
+=========================================================
+
+   Tujuan:
+
+   - tidak overlap
+   - tidak keluar canvas
+   - ukuran fisik tidak berubah
+   - margin tetap
+   - gap tetap
+
+   Algorithm:
+
+   Simple row/strip packing.
+
+   Foto diurutkan dari yang paling tinggi.
+
+   Setiap foto dimasukkan ke row selama masih muat.
+
+   Kalau tidak muat → row baru.
+
 ========================================================= */
 
-function optimizeRows() {
+function packPhotos(queue, canvasW, canvasH, margin, gap) {
+
+    const sorted = [...queue].sort((a, b) => {
+
+        const ah = a.heightCm;
+        const bh = b.heightCm;
+
+        if (bh !== ah) {
+            return bh - ah;
+        }
+
+        return b.widthCm - a.widthCm;
+
+    });
+
+    const rows = [];
+
+    let currentRow = null;
+
+    for (const item of sorted) {
+
+        if (!currentRow) {
+
+            currentRow = {
+                items: [],
+                width: 0,
+                height: item.heightCm
+            };
+
+        }
+
+        const proposedWidth =
+            currentRow.width +
+            (currentRow.items.length ? gap : 0) +
+            item.widthCm;
+
+        const availableWidth =
+            canvasW - (margin * 2);
+
+        if (
+            proposedWidth <= availableWidth + 0.0001
+        ) {
+
+            currentRow.items.push(item);
+
+            currentRow.width = proposedWidth;
+
+            currentRow.height = Math.max(
+                currentRow.height,
+                item.heightCm
+            );
+
+        } else {
+
+            rows.push(currentRow);
+
+            currentRow = {
+                items: [item],
+                width: item.widthCm,
+                height: item.heightCm
+            };
+
+        }
+
+    }
+
+    if (currentRow && currentRow.items.length) {
+        rows.push(currentRow);
+    }
+
 
     /*
-     * V1 menggunakan pengelompokan
-     * berdasarkan tinggi foto.
+     * Hitung tinggi total.
+     */
+
+    let totalHeight = 0;
+
+    rows.forEach((row, index) => {
+
+        totalHeight += row.height;
+
+        if (index > 0) {
+            totalHeight += gap;
+        }
+
+    });
+
+
+    const availableHeight =
+        canvasH - (margin * 2);
+
+    if (totalHeight > availableHeight + 0.0001) {
+
+        return {
+            success: false,
+            reason:
+                `Canvas tidak cukup tinggi. ` +
+                `Diperlukan sekitar ${totalHeight.toFixed(2)} cm, ` +
+                `tersedia ${availableHeight.toFixed(2)} cm.`
+        };
+
+    }
+
+
+    /*
+     * Buat placement.
+     */
+
+    const placements = [];
+
+    let y = margin;
+
+    for (const row of rows) {
+
+        let x = margin;
+
+        for (const item of row.items) {
+
+            placements.push({
+
+                ...item,
+
+                x,
+                y,
+
+                width: item.widthCm,
+                height: item.heightCm
+
+            });
+
+            x += item.widthCm + gap;
+
+        }
+
+        y += row.height + gap;
+
+    }
+
+
+    /*
+     * Auto spacing:
      *
-     * Tujuannya menjaga jarak
-     * terlihat lebih natural.
+     * Extra horizontal / vertical space dibagi
+     * tanpa mengubah ukuran foto.
+     */
+
+    return {
+        success: true,
+        rows,
+        placements,
+        totalHeight
+    };
+
+}
+
+
+/* =========================================================
+   CENTER ROWS / AUTO SPACING
+========================================================= */
+
+function applyAutoSpacing(result, canvasW, canvasH, margin, gap) {
+
+    if (!result.success) {
+        return result;
+    }
+
+    const placements = result.placements;
+
+    /*
+     * Group berdasarkan Y.
      */
 
     const rows = [];
 
-    let currentRow = [];
+    for (const item of placements) {
 
-    let currentY = null;
+        let row = rows.find(
+            r => Math.abs(r.y - item.y) < 0.001
+        );
 
+        if (!row) {
 
-    state.placements.forEach(
-        placement => {
+            row = {
+                y: item.y,
+                items: []
+            };
 
-            if (
-                currentY === null
-            ) {
-
-                currentY =
-                    placement.y;
-
-            }
-
-
-            if (
-                Math.abs(
-                    placement.y -
-                    currentY
-                ) > 0.01
-            ) {
-
-                rows.push(
-                    currentRow
-                );
-
-                currentRow = [];
-
-                currentY =
-                    placement.y;
-
-            }
-
-
-            currentRow.push(
-                placement
-            );
+            rows.push(row);
 
         }
-    );
 
-
-    if (currentRow.length) {
-
-        rows.push(
-            currentRow
-        );
+        row.items.push(item);
 
     }
 
 
     /*
-     * Distribusi horizontal.
+     * Center setiap row secara horizontal.
      */
 
-    rows.forEach(
-        row => {
+    for (const row of rows) {
 
-            if (
-                row.length < 2
-            ) {
+        const minX =
+            Math.min(...row.items.map(item => item.x));
 
-                return;
-
-            }
-
-
-            const totalWidth =
-                row.reduce(
-                    (
-                        total,
-                        item
-                    ) =>
-                        total +
-                        item.widthCm,
-                    0
-                );
-
-
-            const available =
-                state.canvasWidthCm -
-                state.marginCm * 2;
-
-
-            const freeSpace =
-                available -
-                totalWidth;
-
-
-            let spacing =
-                state.gapCm;
-
-
-            if (
-                state.autoSpacing &&
-                freeSpace > 0
-            ) {
-
-                spacing =
-                    Math.max(
-                        state.gapCm,
-                        Math.min(
-                            1.5,
-                            freeSpace /
-                            (
-                                row.length +
-                                1
-                            )
-                        )
-                    );
-
-            }
-
-
-            let x =
-                state.marginCm;
-
-
-            row.forEach(
-                item => {
-
-                    item.x = x;
-
-                    x +=
-                        item.widthCm +
-                        spacing;
-
-                }
+        const maxX =
+            Math.max(
+                ...row.items.map(
+                    item => item.x + item.width
+                )
             );
 
+        const rowWidth = maxX - minX;
+
+        const availableWidth =
+            canvasW - margin * 2;
+
+        const extra =
+            availableWidth - rowWidth;
+
+        if (extra > 0) {
+
+            const offset = extra / 2;
+
+            row.items.forEach(item => {
+                item.x += offset;
+            });
+
         }
+
+    }
+
+    return result;
+
+}
+
+
+/* =========================================================
+   VALIDATE PLACEMENTS
+========================================================= */
+
+function validatePlacements(
+    placements,
+    canvasW,
+    canvasH
+) {
+
+    const EPS = 0.0001;
+
+    /*
+     * Check boundaries.
+     */
+
+    for (const item of placements) {
+
+        if (item.x < -EPS) {
+            return {
+                valid: false,
+                message: `Foto ${item.id} keluar dari sisi kiri.`
+            };
+        }
+
+        if (item.y < -EPS) {
+            return {
+                valid: false,
+                message: `Foto ${item.id} keluar dari sisi atas.`
+            };
+        }
+
+        if (
+            item.x + item.width >
+            canvasW + EPS
+        ) {
+
+            return {
+                valid: false,
+                message: `Foto ${item.id} keluar dari sisi kanan.`
+            };
+
+        }
+
+        if (
+            item.y + item.height >
+            canvasH + EPS
+        ) {
+
+            return {
+                valid: false,
+                message: `Foto ${item.id} keluar dari sisi bawah.`
+            };
+
+        }
+
+    }
+
+
+    /*
+     * Check overlap.
+     */
+
+    for (let i = 0; i < placements.length; i++) {
+
+        for (
+            let j = i + 1;
+            j < placements.length;
+            j++
+        ) {
+
+            const a = placements[i];
+            const b = placements[j];
+
+            const overlapX =
+                a.x < b.x + b.width - EPS &&
+                a.x + a.width > b.x + EPS;
+
+            const overlapY =
+                a.y < b.y + b.height - EPS &&
+                a.y + a.height > b.y + EPS;
+
+            if (overlapX && overlapY) {
+
+                return {
+                    valid: false,
+                    message:
+                        `Foto ${a.id} dan ${b.id} saling bertumpuk.`
+                };
+
+            }
+
+        }
+
+    }
+
+    return {
+        valid: true
+    };
+
+}
+
+
+/* =========================================================
+   RENDER PHOTO
+=========================================================
+
+   PENTING:
+
+   Tidak menggunakan:
+
+   ctx.filter
+   brightness
+   contrast
+   saturation
+   sharpening
+   AI
+   color adjustment
+
+   Foto hanya diposisikan.
+
+========================================================= */
+
+function drawPhoto(
+    ctx,
+    item,
+    x,
+    y,
+    width,
+    height
+) {
+
+    const img = item.source.image;
+
+    if (!img) {
+        return;
+    }
+
+    /*
+     * Jangan menggunakan filter apa pun.
+     */
+
+    ctx.filter = "none";
+
+    /*
+     * Kita menggunakan contain.
+     *
+     * Artinya seluruh source image tetap terlihat.
+     * Tidak ada crop otomatis.
+     */
+
+    const sourceRatio =
+        img.naturalWidth / img.naturalHeight;
+
+    const targetRatio =
+        width / height;
+
+    let drawWidth;
+    let drawHeight;
+
+    if (sourceRatio > targetRatio) {
+
+        drawWidth = width;
+        drawHeight = width / sourceRatio;
+
+    } else {
+
+        drawHeight = height;
+        drawWidth = height * sourceRatio;
+
+    }
+
+    const offsetX =
+        x + (width - drawWidth) / 2;
+
+    const offsetY =
+        y + (height - drawHeight) / 2;
+
+    ctx.drawImage(
+        img,
+        offsetX,
+        offsetY,
+        drawWidth,
+        drawHeight
     );
 
 }
 
 
 /* =========================================================
-   RENDER CANVAS
+   CREATE CANVAS
 ========================================================= */
 
-function renderCanvas() {
+function createCanvas() {
+
+    const widthCm =
+        cleanNumber(canvasWidth?.value, 30);
+
+    const heightCm =
+        cleanNumber(canvasHeight?.value, 40);
+
+    const dpi =
+        cleanNumber(dpiInput?.value, 300);
 
     const widthPx =
-        cmToPx(
-            state.canvasWidthCm
-        );
+        Math.round(cmToPx(widthCm, dpi));
 
     const heightPx =
-        cmToPx(
-            state.canvasHeightCm
+        Math.round(cmToPx(heightCm, dpi));
+
+    /*
+     * Prevent browser memory disaster.
+     */
+
+    const megapixels =
+        (widthPx * heightPx) / 1000000;
+
+    if (megapixels > 100) {
+
+        throw new Error(
+            `Canvas terlalu besar: ` +
+            `${megapixels.toFixed(1)} MP.\n` +
+            `Turunkan DPI atau ukuran canvas.`
         );
 
+    }
+
+    const canvas =
+        document.createElement("canvas");
+
+    canvas.width = widthPx;
+    canvas.height = heightPx;
+
+    return {
+        canvas,
+        widthCm,
+        heightCm,
+        dpi,
+        widthPx,
+        heightPx
+    };
+
+}
+
+
+/* =========================================================
+   RENDER COLLAGE
+========================================================= */
+
+function renderCollage() {
+
+    if (!state.canvas) {
+        return;
+    }
+
+    const {
+        canvas,
+        widthCm,
+        heightCm,
+        dpi
+    } = state.canvas;
+
+    const ctx =
+        canvas.getContext("2d", {
+            alpha: false
+        });
 
     /*
-     * Canvas internal resolution.
-     *
-     * Untuk export kita gunakan
-     * resolusi sesuai DPI.
+     * Putih bersih sebagai media dasar.
      */
 
-    canvas.width =
-        widthPx;
-
-    canvas.height =
-        heightPx;
-
-
-    /*
-     * Preview size dibatasi agar
-     * browser tidak terlalu berat.
-     */
-
-    const maxPreviewWidth =
-        900;
-
-    const maxPreviewHeight =
-        700;
-
-
-    const scale =
-        Math.min(
-            maxPreviewWidth /
-            widthPx,
-
-            maxPreviewHeight /
-            heightPx,
-
-            1
-        );
-
-
-    canvasWrapper.style.width =
-        `${widthPx * scale * state.zoom}px`;
-
-    canvasWrapper.style.height =
-        `${heightPx * scale * state.zoom}px`;
-
-
-    /*
-     * Background putih.
-     */
-
-    ctx.save();
-
-    ctx.fillStyle =
-        "#ffffff";
+    ctx.fillStyle = "#ffffff";
 
     ctx.fillRect(
         0,
         0,
-        widthPx,
-        heightPx
+        canvas.width,
+        canvas.height
     );
 
 
     /*
-     * Render foto.
+     * Render setiap foto.
      */
 
-    state.placements.forEach(
-        placement => {
+    for (const item of state.placements) {
 
-            drawPlacement(
-                placement
-            );
+        const x =
+            cmToPx(item.x, dpi);
 
-        }
-    );
+        const y =
+            cmToPx(item.y, dpi);
 
+        const width =
+            cmToPx(item.width, dpi);
 
-    ctx.restore();
+        const height =
+            cmToPx(item.height, dpi);
 
-}
-
-
-/* =========================================================
-   DRAW PHOTO
-========================================================= */
-
-function drawPlacement(
-    placement
-) {
-
-    const photo =
-        placement.photo;
-
-
-    if (
-        !photo ||
-        !photo.image
-    ) {
-
-        return;
-
-    }
-
-
-    const x =
-        cmToPx(
-            placement.x
-        );
-
-    const y =
-        cmToPx(
-            placement.y
-        );
-
-    const width =
-        cmToPx(
-            placement.widthCm
-        );
-
-    const height =
-        cmToPx(
-            placement.heightCm
-        );
-
-
-    ctx.save();
-
-
-    /*
-     * Tidak ada:
-     *
-     * filter
-     * brightness
-     * contrast
-     * saturation
-     * sharpening
-     *
-     * Foto ditarik ke ukuran
-     * layout yang diminta.
-     */
-
-
-    ctx.filter =
-        "none";
-
-
-    /*
-     * Untuk V1 kita menggunakan
-     * object-fit: contain style.
-     *
-     * Ini menjaga seluruh foto
-     * tetap terlihat.
-     */
-
-    const sourceRatio =
-        photo.originalWidth /
-        photo.originalHeight;
-
-
-    const targetRatio =
-        width /
-        height;
-
-
-    let drawWidth =
-        width;
-
-    let drawHeight =
-        height;
-
-    let drawX =
-        x;
-
-    let drawY =
-        y;
-
-
-    if (
-        state.keepAspect
-    ) {
-
-        if (
-            sourceRatio >
-            targetRatio
-        ) {
-
-            drawHeight =
-                width /
-                sourceRatio;
-
-            drawY =
-                y +
-                (
-                    height -
-                    drawHeight
-                ) /
-                2;
-
-        }
-        else {
-
-            drawWidth =
-                height *
-                sourceRatio;
-
-            drawX =
-                x +
-                (
-                    width -
-                    drawWidth
-                ) /
-                2;
-
-        }
-
-    }
-
-
-    ctx.drawImage(
-        photo.image,
-        Math.round(drawX),
-        Math.round(drawY),
-        Math.round(drawWidth),
-        Math.round(drawHeight)
-    );
-
-
-    /*
-     * Jika overflow,
-     * tampilkan garis peringatan
-     * hanya di preview.
-     */
-
-    if (
-        placement.overflow
-    ) {
-
-        ctx.strokeStyle =
-            "#dc2626";
-
-        ctx.lineWidth =
-            Math.max(
-                2,
-                cmToPx(0.02)
-            );
-
-        ctx.strokeRect(
+        drawPhoto(
+            ctx,
+            item,
             x,
             y,
             width,
@@ -1906,82 +1189,417 @@ function drawPlacement(
     }
 
 
-    ctx.restore();
+    /*
+     * Preview.
+     */
+
+    renderPreview();
 
 }
 
 
 /* =========================================================
-   GENERATE BUTTON
+   PREVIEW
 ========================================================= */
 
-document
-    .getElementById("generateBtn")
-    .addEventListener(
-        "click",
-        () => {
+function renderPreview() {
 
-            state.marginCm =
-                getNumber(
-                    "margin",
-                    0.5
-                );
+    if (!previewCanvas || !state.canvas) {
+        return;
+    }
 
-            state.gapCm =
-                getNumber(
-                    "gap",
-                    0.3
-                );
+    const source =
+        state.canvas.canvas;
 
-            generateLayout();
+    const ctx =
+        previewCanvas.getContext("2d");
+
+    const zoom =
+        state.zoom;
+
+    previewCanvas.width =
+        Math.round(source.width * zoom);
+
+    previewCanvas.height =
+        Math.round(source.height * zoom);
+
+    ctx.clearRect(
+        0,
+        0,
+        previewCanvas.width,
+        previewCanvas.height
+    );
+
+    ctx.drawImage(
+        source,
+        0,
+        0,
+        previewCanvas.width,
+        previewCanvas.height
+    );
+
+}
+
+
+/* =========================================================
+   GENERATE
+========================================================= */
+
+function generateCollage() {
+
+    try {
+
+        if (!state.files.length) {
+
+            alert(
+                "Upload foto terlebih dahulu."
+            );
+
+            return;
 
         }
-    );
+
+        /*
+         * Minimal 1 ID valid.
+         */
+
+        if (!state.groups.size) {
+
+            alert(
+                "Tidak ditemukan foto dengan format nama yang benar.\n\n" +
+                "Contoh:\n" +
+                "DSCF1123 2x3.jpg"
+            );
+
+            return;
+
+        }
+
+
+        /*
+         * Check jumlah ID.
+         */
+
+        if (state.groups.size > MAX_IDS) {
+
+            alert(
+                `Maksimal ${MAX_IDS} ID foto.\n` +
+                `Foto kelebihan tidak akan diproses.`
+            );
+
+            return;
+
+        }
+
+
+        /*
+         * Check pasangan.
+         */
+
+        const incomplete = [];
+
+        for (const group of state.groups.values()) {
+
+            const missing = [];
+
+            for (const size of state.sizes.keys()) {
+
+                if (!group.files.has(size)) {
+                    missing.push(size);
+                }
+
+            }
+
+            if (missing.length) {
+
+                incomplete.push(
+                    `${group.id}: ${missing.join(", ")}`
+                );
+
+            }
+
+        }
+
+        /*
+         * Tidak menghentikan seluruh proses,
+         * tetapi memberi peringatan jelas.
+         */
+
+        if (incomplete.length) {
+
+            const proceed = confirm(
+                "Ada pasangan foto yang belum lengkap:\n\n" +
+                incomplete.join("\n") +
+                "\n\n" +
+                "Foto yang tidak ada TIDAK akan dipasangkan dengan ID lain.\n\n" +
+                "Lanjutkan?"
+            );
+
+            if (!proceed) {
+                return;
+            }
+
+        }
+
+
+        /*
+         * Canvas.
+         */
+
+        state.canvas =
+            createCanvas();
+
+
+        /*
+         * Queue.
+         */
+
+        const queue =
+            createPrintQueue();
+
+        if (!queue.length) {
+
+            alert(
+                "Jumlah foto yang akan dicetak masih 0."
+            );
+
+            return;
+
+        }
+
+
+        /*
+         * Margin dan gap dalam CM.
+         */
+
+        const margin =
+            Math.max(
+                0,
+                cleanNumber(
+                    marginInput?.value,
+                    0.3
+                )
+            );
+
+        const gap =
+            Math.max(
+                0,
+                cleanNumber(
+                    gapInput?.value,
+                    0.2
+                )
+            );
+
+
+        /*
+         * Packing.
+         */
+
+        let result =
+            packPhotos(
+                queue,
+                state.canvas.widthCm,
+                state.canvas.heightCm,
+                margin,
+                gap
+            );
+
+        if (!result.success) {
+
+            alert(
+                "Layout tidak dapat dibuat.\n\n" +
+                result.reason +
+                "\n\n" +
+                "Coba:\n" +
+                "• kurangi jumlah foto\n" +
+                "• kecilkan margin\n" +
+                "• kecilkan gap\n" +
+                "• gunakan canvas lebih besar"
+            );
+
+            return;
+
+        }
+
+
+        /*
+         * Auto spacing.
+         */
+
+        if (autoSpacing?.checked) {
+
+            result =
+                applyAutoSpacing(
+                    result,
+                    state.canvas.widthCm,
+                    state.canvas.heightCm,
+                    margin,
+                    gap
+                );
+
+        }
+
+
+        /*
+         * Final validation.
+         */
+
+        const validation =
+            validatePlacements(
+                result.placements,
+                state.canvas.widthCm,
+                state.canvas.heightCm
+            );
+
+        if (!validation.valid) {
+
+            alert(
+                "Layout dibatalkan.\n\n" +
+                validation.message
+            );
+
+            return;
+
+        }
+
+
+        state.placements =
+            result.placements;
+
+        state.generated = true;
+
+        renderCollage();
+
+        updateStatus();
+
+    } catch (error) {
+
+        console.error(error);
+
+        alert(
+            "Terjadi kesalahan:\n\n" +
+            error.message
+        );
+
+    }
+
+}
 
 
 /* =========================================================
    SHUFFLE
 ========================================================= */
 
-document
-    .getElementById("shuffleBtn")
-    .addEventListener(
-        "click",
-        () => {
-
-            shuffleArray(
-                state.photos
-            );
-
-            generateLayout();
-
-        }
-    );
-
-
 function shuffleArray(array) {
 
+    const result = [...array];
+
     for (
-        let i = array.length - 1;
+        let i = result.length - 1;
         i > 0;
         i--
     ) {
 
         const j =
             Math.floor(
-                Math.random() *
-                (i + 1)
+                Math.random() * (i + 1)
             );
 
         [
-            array[i],
-            array[j]
-        ] = [
-            array[j],
-            array[i]
+            result[i],
+            result[j]
+        ] =
+        [
+            result[j],
+            result[i]
         ];
 
     }
+
+    return result;
+
+}
+
+
+function shuffleLayout() {
+
+    if (!state.generated) {
+
+        generateCollage();
+
+        return;
+
+    }
+
+    state.placements =
+        shuffleArray(state.placements);
+
+    /*
+     * Re-pack berdasarkan urutan baru.
+     */
+
+    const queue =
+        state.placements.map(item => ({
+            id: item.id,
+            sizeKey: item.sizeKey,
+            source: item.source,
+            widthCm: item.width,
+            heightCm: item.height
+        }));
+
+    const margin =
+        Math.max(
+            0,
+            cleanNumber(
+                marginInput?.value,
+                0.3
+            )
+        );
+
+    const gap =
+        Math.max(
+            0,
+            cleanNumber(
+                gapInput?.value,
+                0.2
+            )
+        );
+
+    const result =
+        packPhotos(
+            queue,
+            state.canvas.widthCm,
+            state.canvas.heightCm,
+            margin,
+            gap
+        );
+
+    if (!result.success) {
+
+        alert(
+            "Susun ulang gagal karena canvas tidak cukup."
+        );
+
+        return;
+
+    }
+
+    state.placements =
+        result.placements;
+
+    if (autoSpacing?.checked) {
+
+        applyAutoSpacing(
+            result,
+            state.canvas.widthCm,
+            state.canvas.heightCm,
+            margin,
+            gap
+        );
+
+    }
+
+    renderCollage();
 
 }
 
@@ -1990,356 +1608,112 @@ function shuffleArray(array) {
    RESET
 ========================================================= */
 
-document
-    .getElementById("resetBtn")
-    .addEventListener(
-        "click",
-        () => {
+function resetApp() {
 
-            state.files = [];
+    state.files = [];
+    state.groups.clear();
+    state.sizes.clear();
+    state.placements = [];
+    state.canvas = null;
+    state.generated = false;
 
-            state.photos = [];
+    if (fileInput) {
+        fileInput.value = "";
+    }
 
-            state.pairs = {};
+    if (fileList) {
 
-            state.sizes = {};
+        fileList.innerHTML = `
+            <div class="empty-state">
+                Belum ada foto.
+            </div>
+        `;
 
-            state.placements = [];
+    }
 
+    if (sizeList) {
+        sizeList.innerHTML = "";
+    }
 
-            pairList.innerHTML = `
-                <div class="empty-state">
-                    Belum ada foto
-                </div>
-            `;
+    if (previewCanvas) {
 
+        const ctx =
+            previewCanvas.getContext("2d");
 
-            sizeControls.innerHTML = `
-                <div class="empty-state small">
-                    Upload foto terlebih dahulu.
-                </div>
-            `;
+        ctx.clearRect(
+            0,
+            0,
+            previewCanvas.width,
+            previewCanvas.height
+        );
 
+    }
 
-            photoCounter.textContent =
-                "0 / 20";
-
-
-            placedCount.textContent =
-                "0";
-
-
-            layoutStatus.textContent =
-                "Belum dibuat";
-
-
-            showWarning("");
-
-            renderCanvas();
-
-        }
-    );
-
-
-/* =========================================================
-   ZOOM
-========================================================= */
-
-document
-    .getElementById("zoomInBtn")
-    .addEventListener(
-        "click",
-        () => {
-
-            state.zoom =
-                Math.min(
-                    2,
-                    state.zoom +
-                    0.1
-                );
-
-            updateZoom();
-
-        }
-    );
-
-
-document
-    .getElementById("zoomOutBtn")
-    .addEventListener(
-        "click",
-        () => {
-
-            state.zoom =
-                Math.max(
-                    0.2,
-                    state.zoom -
-                    0.1
-                );
-
-            updateZoom();
-
-        }
-    );
-
-
-function updateZoom() {
-
-    zoomValue.textContent =
-        `${Math.round(
-            state.zoom * 100
-        )}%`;
-
-    renderCanvas();
+    updateCanvasInfo();
+    updateStatus();
 
 }
 
 
 /* =========================================================
-   EXPORT
+   EXPORT PNG
 ========================================================= */
-
-document
-    .getElementById("exportBtn")
-    .addEventListener(
-        "click",
-        exportPNG
-    );
-
 
 function exportPNG() {
 
-    if (
-        !state.placements.length
-    ) {
+    if (!state.canvas || !state.generated) {
 
         alert(
-            "Buat layout terlebih dahulu."
+            "Buat collage terlebih dahulu."
         );
 
         return;
 
     }
 
+    const {
+        canvas,
+        widthCm,
+        heightCm,
+        dpi
+    } = state.canvas;
 
-    /*
-     * Render ulang dengan resolusi
-     * output sebenarnya.
-     */
+    const filename =
+        `auto-collage-${widthCm}x${heightCm}cm-${dpi}dpi.png`;
 
-    const exportCanvas =
-        document.createElement(
-            "canvas"
-        );
-
-
-    exportCanvas.width =
-        cmToPx(
-            state.canvasWidthCm
-        );
-
-    exportCanvas.height =
-        cmToPx(
-            state.canvasHeightCm
-        );
-
-
-    const exportCtx =
-        exportCanvas.getContext(
-            "2d"
-        );
-
-
-    exportCtx.fillStyle =
-        "#ffffff";
-
-
-    exportCtx.fillRect(
-        0,
-        0,
-        exportCanvas.width,
-        exportCanvas.height
-    );
-
-
-    state.placements.forEach(
-        placement => {
-
-            const photo =
-                placement.photo;
-
-
-            if (
-                !photo ||
-                !photo.image
-            ) {
-
-                return;
-
-            }
-
-
-            const x =
-                cmToPx(
-                    placement.x
-                );
-
-            const y =
-                cmToPx(
-                    placement.y
-                );
-
-            const width =
-                cmToPx(
-                    placement.widthCm
-                );
-
-            const height =
-                cmToPx(
-                    placement.heightCm
-                );
-
-
-            exportCtx.save();
-
-            exportCtx.filter =
-                "none";
-
-
-            const sourceRatio =
-                photo.originalWidth /
-                photo.originalHeight;
-
-
-            const targetRatio =
-                width /
-                height;
-
-
-            let drawWidth =
-                width;
-
-            let drawHeight =
-                height;
-
-            let drawX =
-                x;
-
-            let drawY =
-                y;
-
-
-            if (
-                state.keepAspect
-            ) {
-
-                if (
-                    sourceRatio >
-                    targetRatio
-                ) {
-
-                    drawHeight =
-                        width /
-                        sourceRatio;
-
-                    drawY =
-                        y +
-                        (
-                            height -
-                            drawHeight
-                        ) /
-                        2;
-
-                }
-                else {
-
-                    drawWidth =
-                        height *
-                        sourceRatio;
-
-                    drawX =
-                        x +
-                        (
-                            width -
-                            drawWidth
-                        ) /
-                        2;
-
-                }
-
-            }
-
-
-            exportCtx.drawImage(
-                photo.image,
-                Math.round(drawX),
-                Math.round(drawY),
-                Math.round(drawWidth),
-                Math.round(drawHeight)
-            );
-
-
-            exportCtx.restore();
-
-        }
-    );
-
-
-    exportCanvas.toBlob(
+    canvas.toBlob(
         blob => {
 
             if (!blob) {
 
                 alert(
-                    "Gagal membuat file."
+                    "Gagal membuat file PNG."
                 );
 
                 return;
 
             }
 
-
             const url =
-                URL.createObjectURL(
-                    blob
-                );
-
+                URL.createObjectURL(blob);
 
             const link =
-                document.createElement(
-                    "a"
-                );
+                document.createElement("a");
 
+            link.href = url;
+            link.download = filename;
 
-            link.href =
-                url;
-
-
-            link.download =
-                `auto-collage-${
-                    state.canvasWidthCm
-                }x${
-                    state.canvasHeightCm
-                }cm.png`;
-
-
-            document.body.appendChild(
-                link
-            );
-
+            document.body.appendChild(link);
 
             link.click();
 
-
             link.remove();
 
-
-            URL.revokeObjectURL(
-                url
-            );
+            setTimeout(() => {
+                URL.revokeObjectURL(url);
+            }, 1000);
 
         },
-
         "image/png"
     );
 
@@ -2347,51 +1721,233 @@ function exportPNG() {
 
 
 /* =========================================================
-   INITIALIZATION
+   CANVAS INFO
 ========================================================= */
 
-function initialize() {
+function updateCanvasInfo() {
 
-    state.canvasWidthCm =
-        getNumber(
-            "canvasWidth",
+    const width =
+        cleanNumber(
+            canvasWidth?.value,
             30
         );
 
-    state.canvasHeightCm =
-        getNumber(
-            "canvasHeight",
+    const height =
+        cleanNumber(
+            canvasHeight?.value,
             40
         );
 
-    state.dpi =
-        getNumber(
-            "dpi",
+    const dpi =
+        cleanNumber(
+            dpiInput?.value,
             300
         );
 
-    state.marginCm =
-        getNumber(
-            "margin",
-            0.5
+    const widthPx =
+        Math.round(
+            cmToPx(width, dpi)
         );
 
-    state.gapCm =
-        getNumber(
-            "gap",
-            0.3
+    const heightPx =
+        Math.round(
+            cmToPx(height, dpi)
         );
 
+    const ratio =
+        height !== 0
+            ? width / height
+            : 0;
 
-    updateCanvasInfo();
+    if (pixelOutput) {
 
-    renderCanvas();
+        pixelOutput.textContent =
+            `${widthPx} × ${heightPx} px`;
 
+    }
 
-    systemStatus.textContent =
-        "Ready";
+    if (ratioOutput) {
+
+        ratioOutput.textContent =
+            ratio.toFixed(3);
+
+    }
+
+    if (canvasInfo) {
+
+        canvasInfo.textContent =
+            `Canvas ${width}×${height} cm`;
+
+    }
+
+    if (resolutionInfo) {
+
+        resolutionInfo.textContent =
+            `Resolusi ${dpi} DPI`;
+
+    }
 
 }
 
 
-initialize();
+/* =========================================================
+   STATUS
+========================================================= */
+
+function updateStatus() {
+
+    const totalFiles =
+        state.files.length;
+
+    const totalIds =
+        state.groups.size;
+
+    if (photoCount) {
+
+        photoCount.textContent =
+            `Foto ${totalFiles}`;
+
+    }
+
+    if (!statusText) {
+        return;
+    }
+
+    if (state.generated) {
+
+        statusText.textContent =
+            `Berhasil — ${state.placements.length} foto ditempatkan`;
+
+    } else {
+
+        statusText.textContent =
+            `Siap — ${totalIds} ID / ${totalFiles} file`;
+
+    }
+
+}
+
+
+/* =========================================================
+   ZOOM
+========================================================= */
+
+function updateZoom() {
+
+    if (!zoomRange) {
+        return;
+    }
+
+    state.zoom =
+        cleanNumber(
+            zoomRange.value,
+            1
+        );
+
+    if (zoomValue) {
+
+        zoomValue.textContent =
+            `${Math.round(state.zoom * 100)}%`;
+
+    }
+
+    if (state.canvas) {
+        renderPreview();
+    }
+
+}
+
+
+/* =========================================================
+   EVENTS
+========================================================= */
+
+if (fileInput) {
+
+    fileInput.addEventListener(
+        "change",
+        event => {
+
+            processFiles(
+                event.target.files
+            );
+
+        }
+    );
+
+}
+
+
+if (generateBtn) {
+
+    generateBtn.addEventListener(
+        "click",
+        generateCollage
+    );
+
+}
+
+
+if (shuffleBtn) {
+
+    shuffleBtn.addEventListener(
+        "click",
+        shuffleLayout
+    );
+
+}
+
+
+if (resetBtn) {
+
+    resetBtn.addEventListener(
+        "click",
+        resetApp
+    );
+
+}
+
+
+if (exportBtn) {
+
+    exportBtn.addEventListener(
+        "click",
+        exportPNG
+    );
+
+}
+
+
+if (zoomRange) {
+
+    zoomRange.addEventListener(
+        "input",
+        updateZoom
+    );
+
+}
+
+
+[
+    canvasWidth,
+    canvasHeight,
+    dpiInput
+].forEach(input => {
+
+    if (!input) return;
+
+    input.addEventListener(
+        "input",
+        updateCanvasInfo
+    );
+
+});
+
+
+/* =========================================================
+   INITIALIZE
+========================================================= */
+
+updateCanvasInfo();
+updateStatus();
+updateZoom();
