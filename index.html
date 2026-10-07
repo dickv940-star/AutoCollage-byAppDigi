@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Auto Collage - Photo Layout</title>
+
+    <link
+        rel="stylesheet"
+        href="css/style.css"
+    >
+</head>
+
+<body>
+
+<!-- =========================================================
+     HEADER
+========================================================= -->
+
+<header class="app-header">
+
+    <div class="header-inner">
+
+        <div class="brand">
+
+            <div class="brand-icon">
+                AC
+            </div>
+
+            <div>
+                <h1>Auto Collage</h1>
+                <p>Professional Photo Layout</p>
+            </div>
+
+        </div>
+
+        <div class="header-status">
+
+            <span class="status-dot"></span>
+
+            <span id="systemStatus">
+                Ready
+            </span>
+
+        </div>
+
+    </div>
+
+</header>
+
+
+<!-- =========================================================
+     MAIN
+========================================================= -->
+
+<main class="app-container">
+
+
+    <!-- =====================================================
+         LEFT PANEL
+    ====================================================== -->
+
+    <aside class="sidebar">
+
+
+        <!-- CANVAS -->
+        <section class="panel">
+
+            <div class="panel-title">
+
+                <div>
+                    <h2>Canvas</h2>
+                    <p>Ukuran media cetak</p>
+                </div>
+
+            </div>
+
+
+            <div class="form-grid">
+
+                <div class="field">
+
+                    <label for="canvasWidth">
+                        Lebar
+                    </label>
+
+                    <div class="input-unit">
+
+                        <input
+                            type="number"
+                            id="canvasWidth"
+                            value="30"
+                            min="1"
+                            step="0.1"
+                        >
+
+                        <span>cm</span>
+
+                    </div>
+
+                </div>
+
+
+                <div class="field">
+
+                    <label for="canvasHeight">
+                        Tinggi
+                    </label>
+
+                    <div class="input-unit">
+
+                        <input
+                            type="number"
+                            id="canvasHeight"
+                            value="40"
+                            min="1"
+                            step="0.1"
+                        >
+
+                        <span>cm</span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="field">
+
+                <label for="dpi">
+                    Resolusi
+                </label>
+
+                <div class="input-unit">
+
+                    <input
+                        type="number"
+                        id="dpi"
+                        value="300"
+                        min="72"
+                        max="1200"
+                        step="1"
+                    >
+
+                    <span>DPI</span>
+
+                </div>
+
+            </div>
+
+
+            <div class="canvas-info">
+
+                <div>
+                    <span>Pixel output</span>
+                    <strong id="pixelInfo">
+                        3543 × 4724 px
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Rasio</span>
+                    <strong id="canvasRatio">
+                        3:4
+                    </strong>
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- PHOTO UPLOAD -->
+        <section class="panel">
+
+            <div class="panel-title">
+
+                <div>
+                    <h2>Foto</h2>
+                    <p>Maksimal 10 foto berbeda</p>
+                </div>
+
+                <span
+                    class="counter"
+                    id="photoCounter"
+                >
+                    0 / 20
+                </span>
+
+            </div>
+
+
+            <label
+                class="upload-area"
+                for="photoInput"
+            >
+
+                <div class="upload-icon">
+                    +
+                </div>
+
+                <strong>
+                    Upload foto
+                </strong>
+
+                <span>
+                    Maksimal 20 file
+                </span>
+
+                <small>
+                    JPG, JPEG, PNG, WEBP
+                </small>
+
+            </label>
+
+
+            <input
+                type="file"
+                id="photoInput"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                hidden
+            >
+
+
+            <div
+                class="file-warning hidden"
+                id="fileWarning"
+            ></div>
+
+
+            <div
+                class="pair-list"
+                id="pairList"
+            >
+
+                <div class="empty-state">
+                    Belum ada foto
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- PHOTO SETTINGS -->
+        <section class="panel">
+
+            <div class="panel-title">
+
+                <div>
+                    <h2>Layout</h2>
+                    <p>Pengaturan jarak foto</p>
+                </div>
+
+            </div>
+
+
+            <div class="field">
+
+                <label for="margin">
+
+                    Margin canvas
+
+                </label>
+
+                <div class="input-unit">
+
+                    <input
+                        type="number"
+                        id="margin"
+                        value="0.5"
+                        min="0"
+                        step="0.1"
+                    >
+
+                    <span>cm</span>
+
+                </div>
+
+            </div>
+
+
+            <div class="field">
+
+                <label for="gap">
+
+                    Jarak antar foto
+
+                </label>
+
+                <div class="input-unit">
+
+                    <input
+                        type="number"
+                        id="gap"
+                        value="0.3"
+                        min="0"
+                        step="0.1"
+                    >
+
+                    <span>cm</span>
+
+                </div>
+
+            </div>
+
+
+            <label class="checkbox-row">
+
+                <input
+                    type="checkbox"
+                    id="autoSpacing"
+                    checked
+                >
+
+                <span>
+                    Auto spacing
+                </span>
+
+            </label>
+
+
+            <label class="checkbox-row">
+
+                <input
+                    type="checkbox"
+                    id="keepAspect"
+                    checked
+                >
+
+                <span>
+                    Pertahankan proporsi foto
+                </span>
+
+            </label>
+
+        </section>
+
+
+
+        <!-- PHOTO SIZES -->
+        <section class="panel">
+
+            <div class="panel-title">
+
+                <div>
+                    <h2>Ukuran Foto</h2>
+                    <p>Jumlah yang ingin dicetak</p>
+                </div>
+
+            </div>
+
+
+            <div id="sizeControls">
+
+                <div class="empty-state small">
+                    Upload foto terlebih dahulu.
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- ACTIONS -->
+        <section class="panel action-panel">
+
+            <button
+                class="btn btn-primary"
+                id="generateBtn"
+            >
+
+                <span>✦</span>
+
+                Buat Auto Collage
+
+            </button>
+
+
+            <button
+                class="btn btn-secondary"
+                id="shuffleBtn"
+            >
+
+                ↻
+
+                Susun Ulang
+
+            </button>
+
+
+            <button
+                class="btn btn-secondary"
+                id="resetBtn"
+            >
+
+                Reset
+
+            </button>
+
+        </section>
+
+
+    </aside>
+
+
+
+    <!-- =====================================================
+         WORKSPACE
+    ====================================================== -->
+
+    <section class="workspace">
+
+
+        <div class="workspace-toolbar">
+
+            <div>
+
+                <h2>Preview Canvas</h2>
+
+                <span id="previewInfo">
+                    30 × 40 cm
+                </span>
+
+            </div>
+
+
+            <div class="toolbar-actions">
+
+                <button
+                    class="icon-btn"
+                    id="zoomOutBtn"
+                    title="Zoom out"
+                >
+                    −
+                </button>
+
+                <span id="zoomValue">
+                    50%
+                </span>
+
+                <button
+                    class="icon-btn"
+                    id="zoomInBtn"
+                    title="Zoom in"
+                >
+                    +
+                </button>
+
+                <button
+                    class="btn btn-export"
+                    id="exportBtn"
+                >
+                    Export PNG
+                </button>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- CANVAS AREA -->
+
+        <div
+            class="canvas-workspace"
+            id="canvasWorkspace"
+        >
+
+            <div
+                class="canvas-wrapper"
+                id="canvasWrapper"
+            >
+
+                <canvas
+                    id="collageCanvas"
+                ></canvas>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- BOTTOM INFO -->
+
+        <div class="workspace-footer">
+
+            <div class="info-card">
+
+                <span class="info-label">
+                    Foto
+                </span>
+
+                <strong id="placedCount">
+                    0
+                </strong>
+
+            </div>
+
+
+            <div class="info-card">
+
+                <span class="info-label">
+                    Canvas
+                </span>
+
+                <strong id="canvasSizeInfo">
+                    30 × 40 cm
+                </strong>
+
+            </div>
+
+
+            <div class="info-card">
+
+                <span class="info-label">
+                    Resolusi
+                </span>
+
+                <strong id="resolutionInfo">
+                    300 DPI
+                </strong>
+
+            </div>
+
+
+            <div class="info-card">
+
+                <span class="info-label">
+                    Status
+                </span>
+
+                <strong
+                    id="layoutStatus"
+                    class="success-text"
+                >
+                    Belum dibuat
+                </strong>
+
+            </div>
+
+        </div>
+
+    </section>
+
+</main>
+
+
+
+<!-- =========================================================
+     JAVASCRIPT
+========================================================= -->
+
+<script src="js/app.js"></script>
+
+</body>
+</html>
