@@ -581,5 +581,33 @@
 
 <script src="js/app.js"></script>
 
+<!-- PHOTO CROP MODAL -->
+<div class="crop-modal hidden" id="cropModal">
+  <div class="crop-dialog">
+    <div class="crop-header">
+      <div><strong id="cropTitle">Crop Foto</strong><small id="cropSubtitle">Atur area foto yang ingin dicetak</small></div>
+      <button class="crop-close" id="cropCloseBtn" type="button">×</button>
+    </div>
+    <div class="crop-toolbar">
+      <span id="cropRatioLabel">Rasio: -</span>
+      <button type="button" class="crop-tool-btn" id="cropResetBtn">Reset</button>
+      <label class="crop-zoom">Zoom <input type="range" id="cropZoom" min="1" max="3" step="0.01" value="1"></label>
+    </div>
+    <div class="crop-stage" id="cropStage">
+      <canvas id="cropCanvas"></canvas>
+      <div class="crop-selection" id="cropSelection">
+        <span class="crop-handle crop-handle-nw"></span><span class="crop-handle crop-handle-ne"></span>
+        <span class="crop-handle crop-handle-sw"></span><span class="crop-handle crop-handle-se"></span>
+      </div>
+    </div>
+    <div class="crop-footer">
+      <span id="cropHint">Geser kotak crop. Tarik sudut untuk mengubah ukuran.</span>
+      <div class="crop-actions">
+        <button class="btn btn-secondary crop-cancel" id="cropCancelBtn" type="button">Batal</button>
+        <button class="btn btn-primary crop-save" id="cropSaveBtn" type="button">Terapkan Crop</button>
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 </html>
