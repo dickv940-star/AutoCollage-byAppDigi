@@ -977,3 +977,56 @@ body {
     }
 
 }
+
+
+/* =========================================================
+   APP BRANDING + BACKGROUND COLOR PICKER
+========================================================= */
+
+.app-brand-logo {
+    width: 44px;
+    height: 44px;
+    object-fit: contain;
+    border-radius: 10px;
+    background: transparent;
+}
+
+.brand-icon {
+    display: none;
+}
+
+.app-color-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#appBgColor {
+    width: 42px;
+    height: 32px;
+    padding: 2px;
+    border: 1px solid #d9dee3;
+    border-radius: 7px;
+    background: #fff;
+    cursor: pointer;
+}
+
+#appBgColorText {
+    width: 82px;
+    border: 1px solid #d9dee3;
+    border-radius: 7px;
+    padding: 7px 8px;
+    font-size: 11px;
+    text-transform: uppercase;
+    outline: none;
+}
+
+#appBgColorText:focus {
+    border-color: #8a949f;
+}
+
+.brand-logo-link {
+    display: flex;
+    align-items: center;
+}
+
