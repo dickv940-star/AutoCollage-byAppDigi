@@ -984,11 +984,56 @@ body {
 ========================================================= */
 
 .app-brand-logo {
-    width: 44px;
-    height: 44px;
+    width: 52px;
+    height: 52px;
     object-fit: contain;
-    border-radius: 10px;
+    object-position: center;
+    display: block;
+    flex: 0 0 52px;
+    border-radius: 8px;
     background: transparent;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+}
+
+.brand-logo-link {
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 52px;
+    overflow: hidden;
+}
+
+.brand h1 {
+    margin: 0;
+}
+
+.brand p {
+    margin: 2px 0 0;
+}
+
+@media (max-width: 650px) {
+    .app-brand-logo {
+        width: 42px;
+        height: 42px;
+        flex-basis: 42px;
+    }
+
+    .brand-logo-link {
+        width: 42px;
+        height: 42px;
+        flex-basis: 42px;
+    }
+
+    .brand {
+        gap: 8px;
+    }
 }
 
 .brand-icon {
