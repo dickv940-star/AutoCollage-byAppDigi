@@ -28,8 +28,13 @@
 
         <div class="brand">
 
-            <div class="brand-icon">
-                AC
+            <div class="brand-logo-link">
+                <img
+                    class="app-brand-logo"
+                    src="assets/logo.png"
+                    alt="AppDigi"
+                    onerror="this.onerror=null;this.src='assets/logo-appdigi.png';"
+                >
             </div>
 
             <div>
@@ -40,6 +45,11 @@
         </div>
 
         <div class="header-status">
+
+            <div class="app-color-control" title="Pilih warna background aplikasi">
+                <input type="color" id="appBgColor" value="#eef1f4">
+                <input type="text" id="appBgColorText" value="#EEF1F4" maxlength="7" aria-label="Kode warna background">
+            </div>
 
             <span class="status-dot"></span>
 
