@@ -793,145 +793,105 @@ let cropHasSelection=false;
 function cropFitRect(w,h,a){
     let rw=w,rh=rw/a;
     if(rh>h){rh=h;rw=rh*a}
-    return{x:(w-rw)/2,y:(h-rh)/2,width:rw,height:rh}
+    return{x:(w-rw)/2,y:(h-rh)/2,width:rw,height:rh};
 }
 
 function cropDisplay(){
     const i=state.crop.item.image;
-    const sw=cropStage.clientWidth;
-    const sh=cropStage.clientHeight;
+    const sw=cropStage.clientWidth, sh=cropStage.clientHeight;
     const s=Math.min(sw/i.naturalWidth,sh/i.naturalHeight)*state.crop.zoom;
-    return{
-        scale:s,
-        width:i.naturalWidth*s,
-        height:i.naturalHeight*s,
-        left:(sw-i.naturalWidth*s)/2,
-        top:(sh-i.naturalHeight*s)/2
-    };
+    return{scale:s,width:i.naturalWidth*s,height:i.naturalHeight*s,left:(sw-i.naturalWidth*s)/2,top:(sh-i.naturalHeight*s)/2};
 }
 
 function cropRender(){
     if(!state.crop.item)return;
-
-    const d=cropDisplay();
-    const i=state.crop.item.image;
-    const r=state.crop.sourceRect;
-    const ox=state.crop.imageOffsetX||0;
-    const oy=state.crop.imageOffsetY||0;
-
+    const d=cropDisplay(),i=state.crop.item.image;
     state.crop.display=d;
 
     cropCanvas.width=Math.max(1,Math.round(d.width));
     cropCanvas.height=Math.max(1,Math.round(d.height));
-
-    cropCanvas.style.cssText=
-        "position:absolute;"+
-        "left:"+(d.left+ox*d.scale)+"px;"+
-        "top:"+(d.top+oy*d.scale)+"px;"+
-        "width:"+d.width+"px;"+
-        "height:"+d.height+"px;"+
-        "pointer-events:auto;"+
-        "touch-action:none;";
+    cropCanvas.style.position="absolute";
+    cropCanvas.style.left=(d.left+(state.crop.imageOffsetX||0)*d.scale)+"px";
+    cropCanvas.style.top=(d.top+(state.crop.imageOffsetY||0)*d.scale)+"px";
+    cropCanvas.style.width=d.width+"px";
+    cropCanvas.style.height=d.height+"px";
+    cropCanvas.style.pointerEvents="auto";
+    cropCanvas.style.touchAction="none";
 
     const ctx=cropCanvas.getContext("2d");
     ctx.clearRect(0,0,cropCanvas.width,cropCanvas.height);
     ctx.drawImage(i,0,0,cropCanvas.width,cropCanvas.height);
 
-    cropSelection.style.display=cropHasSelection?"block":"none";
-
     if(cropHasSelection){
-        cropSelection.style.left=(d.left+(r.x+ox)*d.scale)+"px";
-        cropSelection.style.top=(d.top+(r.y+oy)*d.scale)+"px";
-        cropSelection.style.width=(r.width*d.scale)+"px";
-        cropSelection.style.height=(r.height*d.scale)+"px";
+        const r=state.crop.selectionStage;
+        cropSelection.style.display="block";
+        cropSelection.style.left=r.x+"px";
+        cropSelection.style.top=r.y+"px";
+        cropSelection.style.width=r.width+"px";
+        cropSelection.style.height=r.height+"px";
+    }else{
+        cropSelection.style.display="none";
     }
 }
 
-function cropClamp(r){
-    const i=state.crop.item.image;
-    const min=20/Math.max(state.crop.display.scale,.0001);
+function cropInitSelection(){
+    const d=cropDisplay();
+    const ratio=state.crop.aspect;
+    const maxW=Math.min(d.width,d.height*ratio);
+    const w=maxW*.72;
+    const h=w/ratio;
 
-    r.width=Math.max(min,r.width);
-    r.height=r.width/state.crop.aspect;
-
-    if(r.width>i.naturalWidth){
-        r.width=i.naturalWidth;
-        r.height=r.width/state.crop.aspect;
-    }
-
-    if(r.height>i.naturalHeight){
-        r.height=i.naturalHeight;
-        r.width=r.height*state.crop.aspect;
-    }
-
-    r.x=Math.max(0,Math.min(r.x,i.naturalWidth-r.width));
-    r.y=Math.max(0,Math.min(r.y,i.naturalHeight-r.height));
-
-    return r;
-}
-
-function cropImageOffsetClamp(){
-    const d=state.crop.display;
-    const r=state.crop.sourceRect;
-    const i=state.crop.item.image;
-    const stageW=cropStage.clientWidth;
-    const stageH=cropStage.clientHeight;
-
-    const cropLeft=(stageW-r.width*d.scale)/2;
-    const cropTop=(stageH-r.height*d.scale)/2;
-    const cropRight=cropLeft+r.width*d.scale;
-    const cropBottom=cropTop+r.height*d.scale;
-
-    let left=d.left+(state.crop.imageOffsetX||0)*d.scale;
-    let top=d.top+(state.crop.imageOffsetY||0)*d.scale;
-    let right=left+d.width;
-    let bottom=top+d.height;
-
-    const minLeft=cropRight-d.width;
-    const maxLeft=cropLeft;
-    const minTop=cropBottom-d.height;
-    const maxTop=cropTop;
-
-    if(d.width>=r.width*d.scale){
-        left=Math.max(minLeft,Math.min(left,maxLeft));
-    }
-
-    if(d.height>=r.height*d.scale){
-        top=Math.max(minTop,Math.min(top,maxTop));
-    }
-
-    state.crop.imageOffsetX=(left-d.left)/d.scale;
-    state.crop.imageOffsetY=(top-d.top)/d.scale;
-}
-
-function cropCreateSelection(){
-    const i=state.crop.item.image;
-    state.crop.sourceRect=cropFitRect(
-        i.naturalWidth,
-        i.naturalHeight,
-        state.crop.aspect
-    );
-
-    const r=state.crop.sourceRect;
-
-    state.crop.imageOffsetX=0;
-    state.crop.imageOffsetY=0;
-
-    /*
-     * Posisikan area crop di tengah stage.
-     * Foto kemudian dapat digeser di belakang area ini.
-     */
-    state.crop.sourceRect={
-        x:r.x,
-        y:r.y,
-        width:r.width,
-        height:r.height
+    state.crop.selectionStage={
+        x:(cropStage.clientWidth-w)/2,
+        y:(cropStage.clientHeight-h)/2,
+        width:w,
+        height:h
     };
 
     cropHasSelection=true;
-    cropRender();
-    cropImageOffsetClamp();
-    cropRender();
+}
+
+function cropSourceRectFromSelection(){
+    const d=state.crop.display;
+    const sel=state.crop.selectionStage;
+    const ox=state.crop.imageOffsetX||0;
+    const oy=state.crop.imageOffsetY||0;
+
+    let x=(sel.x-d.left)/d.scale-ox;
+    let y=(sel.y-d.top)/d.scale-oy;
+    let w=sel.width/d.scale;
+    let h=sel.height/d.scale;
+
+    const i=state.crop.item.image;
+
+    x=Math.max(0,Math.min(x,i.naturalWidth-w));
+    y=Math.max(0,Math.min(y,i.naturalHeight-h));
+
+    state.crop.sourceRect={x,y,width:w,height:h};
+}
+
+function cropClampImage(){
+    const d=state.crop.display;
+    const sel=state.crop.selectionStage;
+    const w=state.crop.item.image.naturalWidth*d.scale;
+    const h=state.crop.item.image.naturalHeight*d.scale;
+
+    const baseLeft=d.left+(state.crop.imageOffsetX||0)*d.scale;
+    const baseTop=d.top+(state.crop.imageOffsetY||0)*d.scale;
+
+    let left=baseLeft;
+    let top=baseTop;
+
+    const minLeft=sel.x+sel.width-w;
+    const maxLeft=sel.x;
+    const minTop=sel.y+sel.height-h;
+    const maxTop=sel.y;
+
+    if(w>=sel.width)left=Math.max(minLeft,Math.min(left,maxLeft));
+    if(h>=sel.height)top=Math.max(minTop,Math.min(top,maxTop));
+
+    state.crop.imageOffsetX=(left-d.left)/d.scale;
+    state.crop.imageOffsetY=(top-d.top)/d.scale;
 }
 
 function openCrop(item){
@@ -940,32 +900,20 @@ function openCrop(item){
     state.crop.item=item;
     state.crop.aspect=item.width/item.height;
     state.crop.zoom=1;
-
-    if(item.crop){
-        state.crop.sourceRect={...item.crop};
-    }else{
-        state.crop.sourceRect=cropFitRect(
-            item.image.naturalWidth,
-            item.image.naturalHeight,
-            state.crop.aspect
-        );
-    }
-
-    cropHasSelection=true;
     state.crop.imageOffsetX=0;
     state.crop.imageOffsetY=0;
 
     cropTitle.textContent="Crop Foto #"+item.id;
     cropSubtitle.textContent=item.name+" · "+item.sizeKey;
-    cropRatioLabel.textContent=
-        "Rasio cetak: "+item.width+" × "+item.height+" cm";
-
+    cropRatioLabel.textContent="Rasio cetak: "+item.width+" × "+item.height+" cm";
     cropZoom.value="1";
+
     cropModal.classList.remove("hidden");
 
     requestAnimationFrame(()=>{
-        cropRender();
-        cropImageOffsetClamp();
+        cropInitSelection();
+        cropClampImage();
+        cropSourceRectFromSelection();
         cropRender();
     });
 }
@@ -974,6 +922,7 @@ function closeCrop(){
     cropModal.classList.add("hidden");
     state.crop.item=null;
     state.crop.sourceRect=null;
+    state.crop.selectionStage=null;
     state.crop.dragging=false;
     state.crop.resizing=false;
     state.crop.movingImage=false;
@@ -985,12 +934,11 @@ function cropPos(e){
     return{x:e.clientX-r.left,y:e.clientY-r.top};
 }
 
-function cropStartImageMove(e){
+function cropStartImage(e){
     e.preventDefault();
     e.stopPropagation();
 
     const p=cropPos(e);
-
     state.crop.startX=p.x;
     state.crop.startY=p.y;
     state.crop.startOffsetX=state.crop.imageOffsetX||0;
@@ -1002,144 +950,116 @@ function cropStartImageMove(e){
 
 function cropMoveImage(e){
     if(!state.crop.movingImage)return;
-
     e.preventDefault();
 
-    const p=cropPos(e);
-    const d=state.crop.display;
+    const p=cropPos(e),d=state.crop.display;
 
-    state.crop.imageOffsetX=
-        state.crop.startOffsetX+(p.x-state.crop.startX)/d.scale;
+    state.crop.imageOffsetX=state.crop.startOffsetX+(p.x-state.crop.startX)/d.scale;
+    state.crop.imageOffsetY=state.crop.startOffsetY+(p.y-state.crop.startY)/d.scale;
 
-    state.crop.imageOffsetY=
-        state.crop.startOffsetY+(p.y-state.crop.startY)/d.scale;
-
-    cropImageOffsetClamp();
+    cropClampImage();
+    cropSourceRectFromSelection();
     cropRender();
 }
 
-function cropStartResize(e,h){
-    if(!state.crop.item)return;
-
+function cropStartResize(e,handle){
     e.preventDefault();
     e.stopPropagation();
 
     const p=cropPos(e);
-
     state.crop.startX=p.x;
     state.crop.startY=p.y;
-    state.crop.startRect={...state.crop.sourceRect};
+    state.crop.startSelection={...state.crop.selectionStage};
     state.crop.resizing=true;
-    state.crop.resizeHandle=h;
+    state.crop.resizeHandle=handle;
 
     try{cropStage.setPointerCapture(e.pointerId)}catch{}
 }
 
 function cropMoveResize(e){
     if(!state.crop.resizing)return;
-
     e.preventDefault();
 
     const p=cropPos(e);
     const d=state.crop.display;
-    const s=state.crop.startRect;
-    const dx=(p.x-state.crop.startX)/d.scale;
-    const dy=(p.y-state.crop.startY)/d.scale;
+    const s=state.crop.startSelection;
+    const dx=p.x-state.crop.startX;
+    const dy=p.y-state.crop.startY;
     const h=state.crop.resizeHandle;
+    const ratio=state.crop.aspect;
 
-    let x=s.x,y=s.y,w=s.width,hgt=s.height;
+    let x=s.x,y=s.y,w=s.width,hh=s.height;
 
     if(h.includes("e"))w=s.width+dx;
     if(h.includes("w")){w=s.width-dx;x=s.x+dx}
-    if(h.includes("s"))hgt=s.height+dy;
-    if(h.includes("n")){hgt=s.height-dy;y=s.y+dy}
+    if(h.includes("s"))hh=s.height+dy;
+    if(h.includes("n")){hh=s.height-dy;y=s.y+dy}
 
-    /*
-     * Sudut mempertahankan rasio.
-     * Sisi juga tetap menjaga rasio cetak agar hasil aman untuk print.
-     */
-    if(h==="n"||h==="s"){
-        w=hgt*state.crop.aspect;
-        x=s.x;
-        if(h==="n")y=s.y+s.height-hgt;
+    if(Math.abs(dx)>=Math.abs(dy)){
+        hh=w/ratio;
     }else{
-        hgt=w/state.crop.aspect;
-        if(h.includes("n"))y=s.y+s.height-hgt;
+        w=hh*ratio;
     }
 
-    if(h==="w"||h==="e"){
-        hgt=w/state.crop.aspect;
-        if(h.includes("n"))y=s.y+s.height-hgt;
-    }
+    if(h.includes("w"))x=s.x+s.width-w;
+    if(h.includes("n"))y=s.y+s.height-hh;
 
-    state.crop.sourceRect=cropClamp({
-        x:x,
-        y:y,
-        width:w,
-        height:hgt
-    });
+    const min=35;
+    if(w<min){w=min;hh=w/ratio;if(h.includes("w"))x=s.x+s.width-w;if(h.includes("n"))y=s.y+s.height-hh}
+    if(hh<min){hh=min;w=hh*ratio;if(h.includes("w"))x=s.x+s.width-w;if(h.includes("n"))y=s.y+s.height-hh}
 
-    cropImageOffsetClamp();
+    const sw=cropStage.clientWidth,sh=cropStage.clientHeight;
+    if(x<0){x=0;w=s.x+s.width}
+    if(y<0){y=0;hh=s.y+s.height}
+    if(x+w>sw){w=sw-x;hh=w/ratio}
+    if(y+hh>sh){hh=sh-y;w=hh*ratio}
+
+    state.crop.selectionStage={x,y,width:w,height:hh};
+    cropClampImage();
+    cropSourceRectFromSelection();
     cropRender();
 }
 
 function cropEnd(e){
-    state.crop.dragging=false;
-    state.crop.resizing=false;
     state.crop.movingImage=false;
+    state.crop.resizing=false;
     state.crop.resizeHandle=null;
-
     try{cropStage.releasePointerCapture(e.pointerId)}catch{}
 }
 
 function cropToggleOrientation(){
     if(!state.crop.item)return;
 
-    const oldAspect=state.crop.aspect;
-    state.crop.aspect=1/oldAspect;
+    state.crop.aspect=1/state.crop.aspect;
 
-    const i=state.crop.item.image;
-    const old=state.crop.sourceRect;
+    const sel=state.crop.selectionStage;
+    const cx=sel.x+sel.width/2,cy=sel.y+sel.height/2;
+    let w=sel.height*state.crop.aspect;
+    let h=sel.height;
 
-    const cx=old.x+old.width/2;
-    const cy=old.y+old.height/2;
+    if(w>cropStage.clientWidth*.9){w=cropStage.clientWidth*.9;h=w/state.crop.aspect}
+    if(h>cropStage.clientHeight*.9){h=cropStage.clientHeight*.9;w=h*state.crop.aspect}
 
-    let w=old.height;
-    let h=w/state.crop.aspect;
+    state.crop.selectionStage={
+        x:cx-w/2,y:cy-h/2,width:w,height:h
+    };
 
-    if(w>i.naturalWidth){
-        w=i.naturalWidth;
-        h=w/state.crop.aspect;
-    }
+    const sw=cropStage.clientWidth,sh=cropStage.clientHeight;
+    state.crop.selectionStage.x=Math.max(0,Math.min(state.crop.selectionStage.x,sw-w));
+    state.crop.selectionStage.y=Math.max(0,Math.min(state.crop.selectionStage.y,sh-h));
 
-    if(h>i.naturalHeight){
-        h=i.naturalHeight;
-        w=h*state.crop.aspect;
-    }
-
-    state.crop.sourceRect=cropClamp({
-        x:cx-w/2,
-        y:cy-h/2,
-        width:w,
-        height:h
-    });
-
-    cropRatioLabel.textContent=
-        "Rasio: "+(state.crop.aspect>=1?"Landscape":"Portrait");
-
-    cropImageOffsetClamp();
+    cropClampImage();
+    cropSourceRectFromSelection();
+    cropRatioLabel.textContent="Rasio: "+(state.crop.aspect>=1?"Landscape":"Portrait");
     cropRender();
 }
 
 function saveCrop(){
     if(!state.crop.item||!cropHasSelection)return;
 
-    state.crop.item.crop={
-        x:state.crop.sourceRect.x,
-        y:state.crop.sourceRect.y,
-        width:state.crop.sourceRect.width,
-        height:state.crop.sourceRect.height
-    };
+    cropSourceRectFromSelection();
+
+    state.crop.item.crop={...state.crop.sourceRect};
 
     closeCrop();
     renderPairs();
@@ -1147,46 +1067,29 @@ function saveCrop(){
     if(state.generated)renderCollage();
 }
 
-/*
- * FOTO = bisa digeser.
- * GARIS CROP = tetap sebagai area pemotongan.
- */
 if(cropCanvas){
-    cropCanvas.addEventListener("pointerdown",e=>{
-        cropStartImageMove(e);
-    });
+    cropCanvas.addEventListener("pointerdown",cropStartImage);
 }
 
 if(cropSelection){
     cropSelection.addEventListener("pointerdown",e=>{
         if(e.target.classList.contains("crop-handle"))return;
-        cropStartImageMove(e);
+        cropStartImage(e);
     });
-}
 
-if(cropSelection){
     cropSelection.querySelectorAll(".crop-handle").forEach(handle=>{
         handle.addEventListener("pointerdown",e=>{
-            const cls=[...handle.classList]
-                .find(x=>x.startsWith("crop-handle-"));
-
-            if(!cls)return;
-
-            const h=cls.replace("crop-handle-","");
-            cropStartResize(e,h);
+            const cls=[...handle.classList].find(x=>x.startsWith("crop-handle-"));
+            if(cls)cropStartResize(e,cls.replace("crop-handle-",""));
         });
     });
 }
 
 if(cropStage){
     cropStage.addEventListener("pointermove",e=>{
-        if(state.crop.resizing){
-            cropMoveResize(e);
-        }else if(state.crop.movingImage){
-            cropMoveImage(e);
-        }
+        if(state.crop.resizing)cropMoveResize(e);
+        else if(state.crop.movingImage)cropMoveImage(e);
     });
-
     cropStage.addEventListener("pointerup",cropEnd);
     cropStage.addEventListener("pointercancel",cropEnd);
 }
@@ -1194,7 +1097,8 @@ if(cropStage){
 if(cropZoom){
     cropZoom.addEventListener("input",()=>{
         state.crop.zoom=n(cropZoom.value,1);
-        cropImageOffsetClamp();
+        cropClampImage();
+        cropSourceRectFromSelection();
         cropRender();
     });
 }
@@ -1202,46 +1106,35 @@ if(cropZoom){
 if(cropResetBtn){
     cropResetBtn.addEventListener("click",()=>{
         if(!state.crop.item)return;
-
         state.crop.zoom=1;
         cropZoom.value="1";
-        state.crop.aspect=
-            state.crop.item.width/state.crop.item.height;
-
-        cropCreateSelection();
+        state.crop.aspect=state.crop.item.width/state.crop.item.height;
+        cropInitSelection();
+        state.crop.imageOffsetX=0;
+        state.crop.imageOffsetY=0;
+        cropClampImage();
+        cropSourceRectFromSelection();
+        cropRender();
     });
 }
 
-if(cropOrientationBtn){
-    cropOrientationBtn.addEventListener("click",cropToggleOrientation);
-}
-
+if(cropOrientationBtn)cropOrientationBtn.addEventListener("click",cropToggleOrientation);
 if(cropCloseBtn)cropCloseBtn.addEventListener("click",closeCrop);
 if(cropCancelBtn)cropCancelBtn.addEventListener("click",closeCrop);
 if(cropSaveBtn)cropSaveBtn.addEventListener("click",saveCrop);
 
 document.addEventListener("keydown",e=>{
     if(cropModal?.classList.contains("hidden"))return;
-
-    if(e.key==="Escape"){
-        closeCrop();
-        return;
-    }
-
-    if(e.key==="Enter"){
-        e.preventDefault();
-        saveCrop();
-    }
+    if(e.key==="Escape"){closeCrop();return}
+    if(e.key==="Enter"){e.preventDefault();saveCrop()}
 });
 
 if(fileList){
     fileList.addEventListener("click",e=>{
         const b=e.target.closest("[data-crop-id]");
         if(!b)return;
-
         const g=state.groups.get(b.dataset.cropId);
         const item=g?.files.get(b.dataset.cropSize);
-
         if(item)openCrop(item);
     });
 }
