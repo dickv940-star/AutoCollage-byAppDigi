@@ -1172,9 +1172,19 @@ function showCanvasCrop(item){
     let w=r.width, h=r.height;
     let x=r.x, y=r.y;
 
-    if(saved && Number.isFinite(saved.centerX) && Number.isFinite(saved.centerY)){
-        // Tetap gunakan frame foto sebagai crop box; saved center hanya
-        // mengatur posisi gambar di dalam frame.
+    if(saved){
+        const savedZoom=Math.max(1,Number(saved.zoom)||1);
+        const savedCx=Math.max(0,Math.min(1,Number(saved.centerX) || 0.5));
+        const savedCy=Math.max(0,Math.min(1,Number(saved.centerY) || 0.5));
+
+        w=r.width/savedZoom;
+        h=r.height/savedZoom;
+        x=r.x+r.width*savedCx-w/2;
+        y=r.y+r.height*savedCy-h/2;
+
+        // Clamp agar crop box tetap berada di dalam foto.
+        x=Math.max(r.x,Math.min(r.x+r.width-w,x));
+        y=Math.max(r.y,Math.min(r.y+r.height-h,y));
     }
 
     state.crop.canvasSelection={x,y,width:w,height:h,photoRect:{...r}};
@@ -1315,15 +1325,20 @@ function applyCanvasCrop(){
     const pr=s.photoRect;
 
     // Frame output tetap ukuran filename / placement.
-    // Crop box hanya menentukan fokus gambar.
+    // Besar crop box menentukan zoom; posisi tengah menentukan fokus.
     const relCx=((s.x+s.width/2)-pr.x)/pr.width;
     const relCy=((s.y+s.height/2)-pr.y)/pr.height;
+    const zoom=Math.max(
+        1,
+        pr.width/Math.max(1,s.width),
+        pr.height/Math.max(1,s.height)
+    );
 
     item.crop={
         canvas:{
             width:item.width,
             height:item.height,
-            zoom:Math.max(1,Number(state.crop.zoom)||1),
+            zoom,
             centerX:Math.max(0,Math.min(1,relCx)),
             centerY:Math.max(0,Math.min(1,relCy))
         }
