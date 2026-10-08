@@ -1143,3 +1143,67 @@ body {
 .crop-actions .btn{
     pointer-events:auto;
 }
+
+
+/* =========================================================
+   PHOTOSHOP-LIKE CROP DIRECTLY ON MAIN CANVAS
+========================================================= */
+.canvas-wrapper{
+    position:relative;
+}
+
+.canvas-crop-overlay{
+    position:absolute;
+    left:0;
+    top:0;
+    z-index:20;
+    pointer-events:auto;
+    touch-action:none;
+}
+
+.canvas-crop-overlay.hidden{
+    display:none;
+}
+
+.canvas-crop-selection{
+    position:absolute;
+    box-sizing:border-box;
+    border:2px solid #ffffff;
+    outline:1px solid rgba(0,0,0,.85);
+    background:rgba(255,255,255,.04);
+    cursor:move;
+    touch-action:none;
+    box-shadow:0 0 0 99999px rgba(0,0,0,.38);
+}
+
+.canvas-crop-handle{
+    position:absolute;
+    width:12px;
+    height:12px;
+    background:#ffffff;
+    border:1px solid #111111;
+    box-sizing:border-box;
+    z-index:3;
+}
+
+.canvas-crop-handle-nw{left:-7px;top:-7px;cursor:nwse-resize}
+.canvas-crop-handle-n{left:50%;top:-7px;margin-left:-6px;cursor:ns-resize}
+.canvas-crop-handle-ne{right:-7px;top:-7px;cursor:nesw-resize}
+.canvas-crop-handle-w{left:-7px;top:50%;margin-top:-6px;cursor:ew-resize}
+.canvas-crop-handle-e{right:-7px;top:50%;margin-top:-6px;cursor:ew-resize}
+.canvas-crop-handle-sw{left:-7px;bottom:-7px;cursor:nesw-resize}
+.canvas-crop-handle-s{left:50%;bottom:-7px;margin-left:-6px;cursor:ns-resize}
+.canvas-crop-handle-se{right:-7px;bottom:-7px;cursor:nwse-resize}
+
+.canvas-crop-hint{
+    position:absolute;
+    left:8px;
+    bottom:8px;
+    padding:5px 8px;
+    border-radius:5px;
+    background:rgba(0,0,0,.78);
+    color:#fff;
+    font:600 11px/1.2 system-ui,sans-serif;
+    white-space:nowrap;
+    pointer-events:none;
+}
