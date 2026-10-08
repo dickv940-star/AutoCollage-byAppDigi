@@ -14,6 +14,15 @@ const state = {
     canvas: null,
     zoom: 0.5,
     generated: false,
+    template: null,
+    drag: {
+        active: false,
+        placement: null,
+        startX: 0,
+        startY: 0,
+        startLeft: 0,
+        startTop: 0
+    },
     crop: {
         item:null,
         aspect:1,
@@ -699,6 +708,112 @@ function renderPreview() {
 }
 
 /* =========================================================
+   COLLAGE TEMPLATE
+   Menyimpan layout, bukan foto.
+========================================================= */
+
+const TEMPLATE_KEY = "autocollage-template-v1";
+
+function loadTemplate() {
+    try {
+        const raw = localStorage.getItem(TEMPLATE_KEY);
+        state.template = raw ? JSON.parse(raw) : null;
+    } catch {
+        state.template = null;
+    }
+}
+
+function saveTemplate() {
+    if (!state.generated || !state.canvas || !state.placements.length) {
+        alert("Buat dan rapikan collage terlebih dahulu.");
+        return;
+    }
+
+    const template = {
+        widthCm: state.canvas.widthCm,
+        heightCm: state.canvas.heightCm,
+        dpi: state.canvas.dpi,
+        placements: state.placements.map((p, index) => ({
+            index,
+            sizeKey: p.sizeKey,
+            x: p.x,
+            y: p.y,
+            width: p.width,
+            height: p.height
+        }))
+    };
+
+    try {
+        localStorage.setItem(TEMPLATE_KEY, JSON.stringify(template));
+        state.template = template;
+        updateTemplateButton();
+        alert("Contoh collage berhasil disimpan.");
+    } catch (e) {
+        console.error(e);
+        alert("Gagal menyimpan contoh collage.");
+    }
+}
+
+function clearTemplate() {
+    try {
+        localStorage.removeItem(TEMPLATE_KEY);
+    } catch {}
+    state.template = null;
+    updateTemplateButton();
+}
+
+function updateTemplateButton() {
+    const btn = document.querySelector("#saveTemplateBtn");
+    if (!btn) return;
+    btn.textContent = state.template
+        ? "Contoh Tersimpan ✓"
+        : "Simpan sebagai Contoh";
+}
+
+function createTemplatePlacements(queue) {
+    if (!state.template) return null;
+
+    const t = state.template;
+    if (
+        Math.abs(n(t.widthCm) - state.canvas.widthCm) > 0.0001 ||
+        Math.abs(n(t.heightCm) - state.canvas.heightCm) > 0.0001
+    ) {
+        return null;
+    }
+
+    const bySize = new Map();
+
+    for (const item of queue) {
+        if (!bySize.has(item.sizeKey)) bySize.set(item.sizeKey, []);
+        bySize.get(item.sizeKey).push(item);
+    }
+
+    const used = new Map();
+    const placements = [];
+
+    for (const slot of t.placements || []) {
+        const list = bySize.get(slot.sizeKey);
+        if (!list || !list.length) continue;
+
+        const index = used.get(slot.sizeKey) || 0;
+        const item = list[index % list.length];
+        used.set(slot.sizeKey, index + 1);
+
+        placements.push({
+            ...item,
+            x: n(slot.x),
+            y: n(slot.y),
+            width: n(slot.width, item.widthCm),
+            height: n(slot.height, item.heightCm)
+        });
+    }
+
+    return placements.length ? placements : null;
+}
+
+loadTemplate();
+
+/* =========================================================
    GENERATE
 ========================================================= */
 
@@ -742,39 +857,56 @@ function generateCollage() {
         const margin = Math.max(0, n(marginInput?.value, 0.5));
         const gap = Math.max(0, n(gapInput?.value, 0.3));
 
-        let result = packPhotos(
-            queue,
-            state.canvas.widthCm,
-            state.canvas.heightCm,
-            margin,
-            gap
-        );
+        let templatePlacements = createTemplatePlacements(queue);
 
-        if (!result.success) {
-            alert(result.reason);
-            return;
-        }
-
-        if (autoSpacing?.checked) {
-            result = applyAutoSpacing(
-                result,
+        if (templatePlacements) {
+            const validTemplate = validatePlacements(
+                templatePlacements,
                 state.canvas.widthCm,
-                margin
+                state.canvas.heightCm
             );
+
+            if (!validTemplate.valid) {
+                alert("Template tidak valid: " + validTemplate.message);
+                return;
+            }
+
+            state.placements = templatePlacements;
+        } else {
+            let result = packPhotos(
+                queue,
+                state.canvas.widthCm,
+                state.canvas.heightCm,
+                margin,
+                gap
+            );
+
+            if (!result.success) {
+                alert(result.reason);
+                return;
+            }
+
+            if (autoSpacing?.checked) {
+                result = applyAutoSpacing(
+                    result,
+                    state.canvas.widthCm,
+                    margin
+                );
+            }
+
+            const valid = validatePlacements(
+                result.placements,
+                state.canvas.widthCm,
+                state.canvas.heightCm
+            );
+
+            if (!valid.valid) {
+                alert(valid.message);
+                return;
+            }
+
+            state.placements = result.placements;
         }
-
-        const valid = validatePlacements(
-            result.placements,
-            state.canvas.widthCm,
-            state.canvas.heightCm
-        );
-
-        if (!valid.valid) {
-            alert(valid.message);
-            return;
-        }
-
-        state.placements = result.placements;
         state.generated = true;
 
         renderCollage();
@@ -844,6 +976,105 @@ function shuffleLayout() {
     updateInfo();
 }
 
+
+/* =========================================================
+   WORKSPACE DRAG
+   Drag foto yang sudah berada di collage.
+   Canvas/kertas tetap memiliki ukuran fisik yang sama.
+========================================================= */
+
+function workspacePoint(e) {
+    const r = previewCanvas.getBoundingClientRect();
+    return {
+        x: (e.clientX - r.left) / Math.max(0.0001, state.zoom),
+        y: (e.clientY - r.top) / Math.max(0.0001, state.zoom)
+    };
+}
+
+function findPlacementAtPoint(px, py) {
+    const dpi = state.canvas?.dpi || 300;
+    const xCm = px / cmToPx(1, dpi);
+    const yCm = py / cmToPx(1, dpi);
+
+    for (let i = state.placements.length - 1; i >= 0; i--) {
+        const p = state.placements[i];
+        if (
+            xCm >= p.x &&
+            xCm <= p.x + p.width &&
+            yCm >= p.y &&
+            yCm <= p.y + p.height
+        ) {
+            return p;
+        }
+    }
+    return null;
+}
+
+function startWorkspaceDrag(e) {
+    if (!state.generated || !previewCanvas) return;
+
+    const point = workspacePoint(e);
+    const placement = findPlacementAtPoint(point.x, point.y);
+    if (!placement) return;
+
+    e.preventDefault();
+
+    state.drag.active = true;
+    state.drag.placement = placement;
+    state.drag.startX = point.x;
+    state.drag.startY = point.y;
+    state.drag.startLeft = placement.x;
+    state.drag.startTop = placement.y;
+
+    previewCanvas.style.cursor = "grabbing";
+
+    try {
+        previewCanvas.setPointerCapture(e.pointerId);
+    } catch {}
+}
+
+function moveWorkspaceDrag(e) {
+    if (!state.drag.active || !state.drag.placement || !state.canvas) return;
+
+    e.preventDefault();
+
+    const point = workspacePoint(e);
+    const dpi = state.canvas.dpi;
+    const dxCm = (point.x - state.drag.startX) / cmToPx(1, dpi);
+    const dyCm = (point.y - state.drag.startY) / cmToPx(1, dpi);
+
+    const p = state.drag.placement;
+    p.x = Math.max(
+        0,
+        Math.min(state.canvas.widthCm - p.width, state.drag.startLeft + dxCm)
+    );
+    p.y = Math.max(
+        0,
+        Math.min(state.canvas.heightCm - p.height, state.drag.startTop + dyCm)
+    );
+
+    renderCollage();
+}
+
+function endWorkspaceDrag(e) {
+    if (!state.drag.active) return;
+
+    state.drag.active = false;
+    state.drag.placement = null;
+    if (previewCanvas) previewCanvas.style.cursor = "grab";
+
+    try {
+        previewCanvas.releasePointerCapture(e.pointerId);
+    } catch {}
+}
+
+if (previewCanvas) {
+    previewCanvas.addEventListener("pointerdown", startWorkspaceDrag);
+    previewCanvas.addEventListener("pointermove", moveWorkspaceDrag, { passive: false });
+    previewCanvas.addEventListener("pointerup", endWorkspaceDrag);
+    previewCanvas.addEventListener("pointercancel", endWorkspaceDrag);
+    previewCanvas.addEventListener("lostpointercapture", endWorkspaceDrag);
+}
 
 /* =========================================================
    CROP CANVAS EDITOR
@@ -1463,6 +1694,17 @@ if(cropCanvasBtn)
 
 if(workspaceGenerateBtn)
     workspaceGenerateBtn.addEventListener("click",generateCollage);
+
+/* =========================================================
+   TEMPLATE BUTTON
+========================================================= */
+
+const saveTemplateBtn = document.querySelector("#saveTemplateBtn");
+
+if (saveTemplateBtn) {
+    saveTemplateBtn.addEventListener("click", saveTemplate);
+    updateTemplateButton();
+}
 
 /* =========================================================
    EXPORT
