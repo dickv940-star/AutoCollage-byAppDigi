@@ -1592,6 +1592,16 @@ function cropMoveResize(e){
         height:Math.max(minH,hh)
     };
 
+    // Handle resize juga mengubah ukuran fisik frame.
+    const currentW=Math.max(.1,n(state.crop.item?.width,2));
+    const currentH=Math.max(.1,n(state.crop.item?.height,3));
+    const startW=Math.max(1,n(s.width));
+    const scaleW=Math.max(.1,w/startW);
+    const nextW=currentW*scaleW;
+    const nextH=currentH*scaleW;
+    if(frameWidthInput) frameWidthInput.value=nextW.toFixed(2);
+    if(frameHeightInput) frameHeightInput.value=nextH.toFixed(2);
+
     cropClampFrame();
     cropClampImage();
     cropSourceRectFromSelection();
@@ -1610,6 +1620,13 @@ function cropToggleOrientation(){
     if(!state.crop.item)return;
 
     state.crop.aspect=1/Math.max(.05,state.crop.aspect||1);
+
+    if(frameWidthInput && frameHeightInput){
+        const w=n(frameWidthInput.value,2);
+        const h=n(frameHeightInput.value,3);
+        frameWidthInput.value=h.toFixed(2);
+        frameHeightInput.value=w.toFixed(2);
+    }
 
     const r=state.crop.selectionStage;
     const cx=r.x+r.width/2;
