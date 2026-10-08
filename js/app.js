@@ -1037,11 +1037,40 @@ function cropStartImage(e){
     const p=cropPos(e);
     state.crop.startX=p.x;
     state.crop.startY=p.y;
-    state.crop.startOffsetX=state.crop.imageOffsetX||0;
-    state.crop.startOffsetY=state.crop.imageOffsetY||0;
-    state.crop.movingImage=true;
+
+    // Klik pada area putih/frame = pindahkan CANVAS.
+    // Klik langsung pada foto di luar frame = pindahkan FOTO.
+    if(e.target.closest("#cropSelection")){
+        const s=state.crop.selectionStage;
+        state.crop.startSelection={...s};
+        state.crop.movingFrame=true;
+    }else{
+        state.crop.startOffsetX=state.crop.imageOffsetX||0;
+        state.crop.startOffsetY=state.crop.imageOffsetY||0;
+        state.crop.movingImage=true;
+    }
 
     try{cropStage.setPointerCapture(e.pointerId)}catch{}
+}
+
+function cropMoveFrame(e){
+    if(!state.crop.movingFrame||!state.crop.selectionStage)return;
+    e.preventDefault();
+    const p=cropPos(e);
+    const s=state.crop.startSelection;
+    const sw=cropStage.clientWidth;
+    const sh=cropStage.clientHeight;
+
+    let x=s.x+(p.x-state.crop.startX);
+    let y=s.y+(p.y-state.crop.startY);
+
+    x=Math.max(0,Math.min(sw-s.width,x));
+    y=Math.max(0,Math.min(sh-s.height,y));
+
+    state.crop.selectionStage={x,y,width:s.width,height:s.height};
+    cropClampImage();
+    cropSourceRectFromSelection();
+    cropRender();
 }
 
 function cropMoveImage(e){
@@ -1146,6 +1175,7 @@ function cropMoveResize(e){
 
 function cropEnd(e){
     state.crop.movingImage=false;
+    state.crop.movingFrame=false;
     state.crop.resizing=false;
     state.crop.resizeHandle=null;
     try{cropStage.releasePointerCapture(e.pointerId)}catch{}
@@ -1188,7 +1218,8 @@ function saveCrop(){
     const iw=state.crop.item.image.naturalWidth;
     const ih=state.crop.item.image.naturalHeight;
 
-    // Simpan posisi foto di dalam CANVAS, bukan potongan sumber foto.
+    // Canvas/frame tetap memakai ukuran cetak asli dari nama file.
+    // Selection hanya menentukan framing/posisi foto di dalam canvas.
     const imageLeft=d.left+ox*d.scale;
     const imageTop=d.top+oy*d.scale;
     const centerX=((sel.x+sel.width/2)-imageLeft)/d.scale;
@@ -1197,7 +1228,16 @@ function saveCrop(){
     state.crop.item.crop={
         canvas:{
             width:state.crop.item.width,
-            height:state.crop.item.height
+            height:state.crop.item.height,
+            ratio:state.crop.aspect
+        },
+        // Simpan ukuran frame relatif terhadap stage supaya hasil
+        // framing benar-benar mengikuti area canvas yang dibuat user.
+        frame:{
+            x:sel.x/cropStage.clientWidth,
+            y:sel.y/cropStage.clientHeight,
+            width:sel.width/cropStage.clientWidth,
+            height:sel.height/cropStage.clientHeight
         },
         zoom:Number(state.crop.zoom)||1,
         centerX:Math.max(0,Math.min(1,centerX/iw)),
@@ -1237,6 +1277,7 @@ if(cropStage){
 
     cropStage.addEventListener("pointermove",e=>{
         if(state.crop.resizing)cropMoveResize(e);
+        else if(state.crop.movingFrame)cropMoveFrame(e);
         else if(state.crop.movingImage)cropMoveImage(e);
     },{passive:false});
 
