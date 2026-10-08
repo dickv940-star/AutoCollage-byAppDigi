@@ -1396,3 +1396,89 @@ html,body{background:var(--design-sidebar)}
         transform-origin:top right;
     }
 }
+
+
+/* =========================================================
+   FINAL MOCKUP POLISH
+   Keep geometry stable while preserving crop behavior.
+========================================================= */
+
+html,
+body {
+    background: var(--design-sidebar);
+}
+
+body {
+    overflow: hidden;
+}
+
+.app-header {
+    height: 98px;
+}
+
+.header-inner {
+    min-width: 0;
+}
+
+.header-status {
+    flex-shrink: 0;
+}
+
+.app-container {
+    width: 100%;
+    height: calc(100vh - 98px);
+    min-height: 0;
+}
+
+.sidebar {
+    min-width: 0;
+    width: 372px;
+    height: calc(100vh - 98px);
+    scrollbar-width: thin;
+}
+
+.workspace {
+    width: calc(100vw - 372px);
+    height: calc(100vh - 98px);
+    min-height: 0;
+}
+
+.workspace-toolbar {
+    flex: 0 0 132px;
+    height: 132px;
+}
+
+.canvas-workspace {
+    min-height: 0;
+}
+
+.canvas-wrapper {
+    overflow: visible;
+}
+
+#collageCanvas {
+    image-rendering: auto;
+}
+
+.canvas-crop-overlay {
+    overflow: visible;
+}
+
+.canvas-crop-selection {
+    will-change: left, top, width, height;
+}
+
+@media (max-width: 900px) {
+    body {
+        overflow: auto;
+    }
+
+    .app-container {
+        height: auto;
+    }
+
+    .workspace {
+        width: 100%;
+        height: auto;
+    }
+}
