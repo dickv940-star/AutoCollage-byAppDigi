@@ -769,9 +769,9 @@ function saveTemplate() {
         return;
     }
 
-    const sourceFrames = state.frames.length
-        ? state.frames
-        : state.placements;
+    const sourceFrames = state.generated && state.placements.length
+        ? state.placements
+        : state.frames;
 
     if (!sourceFrames.length) {
         alert("Tambahkan minimal satu frame foto.");
