@@ -916,69 +916,6 @@ body {
     color: #237b47 !important;
 }
 
-
-/* =========================================================
-   RESPONSIVE
-========================================================= */
-
-@media (max-width: 900px) {
-
-    .app-container {
-        grid-template-columns: 1fr;
-    }
-
-    .sidebar {
-        position: static;
-
-        height: auto;
-
-        border-right: 0;
-
-        border-bottom: 1px solid #e2e6ea;
-    }
-
-    .workspace {
-        min-height: 700px;
-    }
-
-}
-
-
-@media (max-width: 600px) {
-
-    .header-inner {
-        padding: 0 12px;
-    }
-
-    .sidebar {
-        padding: 10px;
-    }
-
-    .workspace-toolbar {
-        padding: 10px;
-    }
-
-    .toolbar-actions {
-        gap: 3px;
-    }
-
-    .btn-export {
-        padding: 6px 8px;
-
-        font-size: 10px;
-    }
-
-    .canvas-workspace {
-        padding: 20px;
-    }
-
-    .workspace-footer {
-        grid-template-columns: 1fr 1fr;
-    }
-
-}
-
-
 /* =========================================================
    APP BRANDING + BACKGROUND COLOR PICKER
 ========================================================= */
@@ -1075,24 +1012,22 @@ body {
     align-items: center;
 }
 
-
 /* PHOTO CROP EDITOR */
 .crop-modal{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:20px}.crop-modal.hidden{display:none!important}.crop-dialog{width:min(1100px,96vw);height:min(900px,94vh);background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 25px 80px rgba(0,0,0,.35);display:flex;flex-direction:column}.crop-stage{flex:1 1 auto;min-height:0;height:auto;max-height:none}.crop-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e5e7eb}.crop-header strong,.crop-header small{display:block}.crop-header small{margin-top:3px;color:#8a949f;font-size:11px}.crop-close{border:0;background:transparent;font-size:28px;cursor:pointer;color:#66717d}.crop-toolbar{display:flex;align-items:center;gap:18px;padding:10px 16px;border-bottom:1px solid #e5e7eb;font-size:11px;color:#66717d}.crop-tool-btn{border:1px solid #d9dee3;background:#fff;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:11px}.crop-zoom{display:flex;align-items:center;gap:8px;margin-left:auto}.crop-zoom input{width:150px}.crop-stage{position:relative;width:100%;min-height:420px;max-height:68vh;background:#111;overflow:hidden;display:flex;align-items:center;justify-content:center;user-select:none;touch-action:none}.crop-stage canvas{pointer-events:auto;touch-action:none;cursor:grab;-webkit-user-drag:none}.crop-selection{position:absolute;border:2px solid #fff;box-shadow:0 0 0 9999px rgba(0,0,0,.48);cursor:move;touch-action:none}.crop-selection:before,.crop-selection:after{content:"";position:absolute;pointer-events:none}.crop-selection:before{inset:33.333% 0;border-top:1px solid rgba(255,255,255,.35);border-bottom:1px solid rgba(255,255,255,.35)}.crop-selection:after{inset:0 33.333%;border-left:1px solid rgba(255,255,255,.35);border-right:1px solid rgba(255,255,255,.35)}.crop-handle{position:absolute;width:13px;height:13px;background:#fff;border:2px solid #222;z-index:3}.crop-handle-nw{left:-7px;top:-7px;cursor:nwse-resize}.crop-handle-n{left:50%;top:-7px;transform:translateX(-50%);cursor:ns-resize}.crop-handle-ne{right:-7px;top:-7px;cursor:nesw-resize}.crop-handle-w{left:-7px;top:50%;transform:translateY(-50%);cursor:ew-resize}.crop-handle-e{right:-7px;top:50%;transform:translateY(-50%);cursor:ew-resize}.crop-handle-sw{left:-7px;bottom:-7px;cursor:nesw-resize}.crop-handle-s{left:50%;bottom:-7px;transform:translateX(-50%);cursor:ns-resize}.crop-handle-se{right:-7px;bottom:-7px;cursor:nwse-resize}.crop-footer{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:12px 16px;border-top:1px solid #e5e7eb}.crop-footer span{color:#7b8490;font-size:10px}.crop-actions{display:flex;gap:7px}.crop-cancel,.crop-save{width:auto;min-width:110px;margin-top:0}.crop-button{margin-left:auto;border:1px solid #d9dee3;background:#fff;color:#4b5563;border-radius:6px;padding:4px 7px;font-size:9px;cursor:pointer;flex-shrink:0}.crop-button.cropped{background:#eef8f2;border-color:#b9dec8;color:#27734a}@media(max-width:650px){.crop-dialog{width:100%;height:100vh;max-height:100vh;border-radius:0}.crop-stage{min-height:0;max-height:none}.crop-toolbar{flex-wrap:wrap;gap:8px}.crop-zoom{width:100%;margin-left:0}.crop-zoom input{flex:1}.crop-footer{flex-direction:column;align-items:stretch}.crop-actions{width:100%}.crop-actions button{flex:1}.crop-selection{border-width:2px}.crop-handle{width:15px;height:15px}}
 .crop-stage canvas{cursor:crosshair}.crop-selection{touch-action:none}.crop-selection[style*="display: none"]{pointer-events:none}
 
 /* =========================================================
-   DESIGN MATCH - USER MOCKUP
-   White header + light sidebar + navy workspace
+   DESIGN + RESPONSIVE
 ========================================================= */
 
 :root{
     --design-navy:#101064;
     --design-sidebar:#f7f7f5;
-    --design-border:#deded9;
 }
 
 html,body{
     background:var(--design-sidebar);
+    overflow-x:hidden;
 }
 
 .app-header{
@@ -1104,52 +1039,7 @@ html,body{
 
 .header-inner{
     padding:0 30px;
-}
-
-.app-brand-logo{
-    width:64px;
-    height:64px;
-    flex-basis:64px;
-    border-radius:9px;
-}
-
-.brand-logo-link{
-    width:64px;
-    height:64px;
-    flex-basis:64px;
-}
-
-.brand{
-    gap:12px;
-}
-
-.brand h1{
-    font-size:20px;
-    font-weight:800;
-    letter-spacing:-.3px;
-}
-
-.brand p{
-    font-size:13px;
-    color:#929292;
-    margin-top:3px;
-}
-
-.header-status{
-    gap:9px;
-}
-
-#appBgColor{
-    width:52px;
-    height:38px;
-    border-radius:7px;
-}
-
-#appBgColorText{
-    width:92px;
-    height:38px;
-    font-size:12px;
-    border-radius:7px;
+    min-width:0;
 }
 
 .app-container{
@@ -1171,15 +1061,6 @@ html,body{
     padding:16px;
     margin-bottom:14px;
     box-shadow:none;
-    background:#fff;
-}
-
-.panel-title h2{
-    font-size:14px;
-}
-
-.panel-title p{
-    font-size:10px;
 }
 
 .workspace{
@@ -1191,17 +1072,18 @@ html,body{
 }
 
 .workspace-toolbar{
+    position:relative;
+    z-index:30;
     min-height:132px;
     padding:20px 30px 10px 14px;
     background:transparent;
     border:0;
     align-items:flex-start;
     justify-content:flex-start;
-    position:relative;
-    z-index:30;
 }
 
 .workspace-toolbar > div:first-child{
+    min-width:0;
     display:flex;
     flex-direction:column;
     align-items:flex-start;
@@ -1210,45 +1092,44 @@ html,body{
 
 .workspace-toolbar h2,
 .workspace-toolbar #previewInfo{
+    width:max-content;
+    max-width:100%;
+    margin:0;
+    padding:9px 18px 10px;
     display:flex;
     align-items:center;
     justify-content:center;
-    width:max-content;
-    min-width:0;
-    height:auto;
-    margin:0;
-    padding:9px 18px 10px;
     border-radius:999px;
     background:#fff;
     color:#080808;
-    font-weight:800;
     line-height:1;
+    font-weight:800;
     letter-spacing:.2px;
-    box-shadow:none;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
 }
 
-.workspace-toolbar h2{
-    font-size:29px;
-    text-transform:lowercase;
-}
+.workspace-toolbar h2{font-size:29px;text-transform:lowercase}
 
 .workspace-toolbar #previewInfo{
-    font-size:24px;
     min-width:143px;
     padding:10px 31px 11px;
-    text-transform:uppercase;
+    font-size:24px;
     font-style:italic;
     font-weight:900;
-}
-
-.workspace-toolbar #previewInfo::after{
-    content:"";
+    text-transform:uppercase;
 }
 
 .toolbar-actions{
     position:absolute;
     top:20px;
     right:28px;
+    max-width:calc(100% - 56px);
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    flex-wrap:wrap;
     gap:5px;
     opacity:.72;
 }
@@ -1256,19 +1137,18 @@ html,body{
 .icon-btn{
     width:30px;
     height:30px;
-    background:rgba(255,255,255,.96);
+    flex:0 0 30px;
     border:0;
+    border-radius:7px;
+    background:rgba(255,255,255,.96);
 }
 
-#zoomValue{
-    color:#fff;
-    font-weight:700;
-}
+#zoomValue{min-width:42px;color:#fff;text-align:center;font-size:11px;font-weight:700}
 
 .btn-export{
+    width:auto;
     min-height:30px;
     padding:6px 9px;
-    font-size:10px;
     background:#fff;
     color:#111;
     border:0;
@@ -1276,161 +1156,46 @@ html,body{
 
 .canvas-workspace{
     position:absolute;
-    inset:132px 0 0 0;
+    inset:132px 0 0;
     padding:28px 40px 40px;
     overflow:auto;
     display:flex;
     align-items:flex-start;
     justify-content:center;
     background:var(--design-navy);
-    background-image:none;
 }
 
 .canvas-wrapper{
+    flex:0 1 auto;
+    width:auto;
+    height:auto;
+    max-width:100%;
+    margin:0;
+    overflow:hidden;
     background:#fff;
     border:6px solid #000;
     border-radius:6px;
     box-shadow:none;
-    margin-top:0;
 }
 
 #collageCanvas{
+    display:block;
+    width:auto;
+    height:auto;
+    max-width:100%;
     background:#fff;
 }
 
-.workspace-footer{
-    display:none;
-}
+.workspace-footer{display:none}
 
+/* TABLET */
 @media(max-width:900px){
-    .app-header{height:78px}
-    .header-inner{padding:0 16px}
-    .app-container{
-        grid-template-columns:1fr;
-        min-height:calc(100vh - 78px);
-    }
-    .sidebar{
-        height:auto;
-        position:static;
-    }
-    .workspace{
-        min-height:680px;
-    }
-    .workspace-toolbar{
-        min-height:112px;
-        padding-left:18px;
-    }
-    .workspace-toolbar h2{font-size:24px}
-    .workspace-toolbar #previewInfo{font-size:20px}
-    .canvas-workspace{inset:112px 0 0}
-}
-
-@media(max-width:600px){
-    .app-brand-logo,.brand-logo-link{width:44px;height:44px;flex-basis:44px}
-    .brand h1{font-size:16px}
-    .brand p{font-size:10px}
-    .header-status{transform:scale(.85);transform-origin:right center}
-    .workspace-toolbar{
-        padding:14px 16px;
-        min-height:104px;
-    }
-    .workspace-toolbar h2{font-size:22px}
-    .workspace-toolbar #previewInfo{font-size:18px;min-width:110px}
-    .canvas-workspace{inset:104px 0 0;padding:20px}
-    .toolbar-actions{right:12px;top:12px;transform:scale(.85);transform-origin:top right}
-}
-
-
-/* RESPONSIVE PHOTOSHOP-LIKE CANVAS */
-.crop-stage{position:relative;flex:1 1 auto;min-height:320px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#202020;}
-.crop-stage::before{content:"";position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(45deg,#292929 25%,transparent 25%),linear-gradient(-45deg,#292929 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#292929 75%),linear-gradient(-45deg,transparent 75%,#292929 75%);background-size:22px 22px;background-position:0 0,0 11px,11px -11px,-11px 0;opacity:.35;}
-.crop-selection{z-index:5;box-sizing:border-box;min-width:36px;min-height:36px;}
-.crop-selection:before,.crop-selection:after{z-index:2}
-.crop-stage canvas{z-index:1;max-width:none;max-height:none;}
-.crop-handle{z-index:10;}
-
-
-/* =========================================================
-   FINAL RESPONSIVE OVERRIDE
-   Mobile/tablet: no horizontal clipping, toolbar wraps,
-   crop dialog fits viewport.
-========================================================= */
-
-html,body{
-    width:100%;
-    max-width:100%;
-    overflow-x:hidden;
-}
-
-body{
-    min-width:0;
-}
-
-.app-header{
-    width:100%;
-}
-
-.header-inner{
-    min-width:0;
-}
-
-.brand,
-.header-status{
-    min-width:0;
-}
-
-.header-status{
-    flex-shrink:1;
-}
-
-.app-container{
-    width:100%;
-    min-width:0;
-}
-
-.sidebar,
-.workspace{
-    min-width:0;
-    width:100%;
-}
-
-.workspace-toolbar{
-    width:100%;
-    min-width:0;
-}
-
-.toolbar-actions{
-    min-width:0;
-    flex-wrap:wrap;
-}
-
-.canvas-workspace{
-    min-width:0;
-    max-width:100%;
-}
-
-.canvas-wrapper{
-    max-width:none;
-    flex:0 0 auto;
-}
-
-/* Tablet */
-@media (max-width:900px){
-    .app-header{
-        height:auto;
-        min-height:78px;
-    }
+    .app-header{height:auto;min-height:78px}
 
     .header-inner{
-        min-height:78px;
         height:auto;
+        min-height:78px;
         padding:12px 16px;
-        gap:12px;
-    }
-
-    .header-status{
-        flex-wrap:wrap;
-        justify-content:flex-end;
     }
 
     .app-container{
@@ -1442,15 +1207,14 @@ body{
     .sidebar{
         position:static;
         height:auto;
-        max-height:none;
         overflow:visible;
         padding:14px;
     }
 
     .workspace{
-        min-height:70vh;
+        width:100%;
+        min-height:680px;
         height:auto;
-        overflow:hidden;
     }
 
     .workspace-toolbar{
@@ -1464,23 +1228,17 @@ body{
     }
 
     .workspace-toolbar > div:first-child{
+        width:100%;
         gap:8px;
-    }
-
-    .workspace-toolbar h2,
-    .workspace-toolbar #previewInfo{
-        width:max-content;
-        max-width:100%;
     }
 
     .toolbar-actions{
         position:static;
         width:100%;
+        max-width:none;
         opacity:1;
         transform:none;
         justify-content:flex-start;
-        align-items:center;
-        gap:6px;
     }
 
     .toolbar-actions .btn{
@@ -1493,155 +1251,128 @@ body{
         position:relative;
         inset:auto;
         width:100%;
+        height:520px;
         min-height:520px;
-        height:calc(100vh - 300px);
-        max-height:800px;
         padding:24px;
         overflow:auto;
         align-items:flex-start;
-        justify-content:center;
     }
 }
 
-/* Phone */
-@media (max-width:600px){
-    .header-inner{
-        padding:10px 12px;
-        align-items:center;
+/* PHONE */
+@media(max-width:600px){
+    .header-inner{padding:9px 10px;gap:8px}
+
+    .app-brand-logo,
+    .brand-logo-link{
+        width:40px;
+        height:40px;
+        flex-basis:40px;
     }
 
-    .brand{
-        gap:8px;
-        min-width:0;
-        flex:1 1 auto;
-    }
-
-    .brand > div:last-child{
-        min-width:0;
-    }
-
-    .brand h1{
-        font-size:15px;
-        white-space:nowrap;
-        overflow:hidden;
-        text-overflow:ellipsis;
-    }
-
-    .brand p{
-        font-size:9px;
-        white-space:nowrap;
-        overflow:hidden;
-        text-overflow:ellipsis;
-    }
+    .brand{gap:8px;flex:1 1 auto;min-width:0}
+    .brand h1{font-size:14px}
+    .brand p{font-size:8px}
 
     .header-status{
+        gap:4px;
+        font-size:9px;
         flex:0 0 auto;
-        gap:5px;
-        font-size:10px;
-        transform:none;
     }
 
-    .app-color-control{
-        display:none;
-    }
+    .app-color-control{display:none}
 
-    .status-dot{
-        width:7px;
-        height:7px;
-        flex:0 0 7px;
-    }
+    .sidebar{padding:10px}
+    .panel{padding:13px;margin-bottom:10px}
 
-    .sidebar{
-        padding:10px;
-    }
+    .form-grid{grid-template-columns:1fr 1fr}
+    .pair-files{grid-template-columns:1fr}
 
-    .panel{
-        padding:13px;
-        margin-bottom:10px;
-    }
-
-    .form-grid{
-        grid-template-columns:1fr 1fr;
-    }
-
-    .pair-files{
-        grid-template-columns:1fr;
-    }
-
-    .workspace{
-        min-height:600px;
-    }
+    .workspace{min-height:560px}
 
     .workspace-toolbar{
-        padding:12px;
-        gap:10px;
+        padding:11px 10px 10px;
+        gap:9px;
     }
 
     .workspace-toolbar h2{
-        font-size:21px;
-        padding:8px 14px;
+        font-size:19px;
+        padding:7px 12px;
     }
 
     .workspace-toolbar #previewInfo{
-        font-size:17px;
         min-width:0;
-        padding:8px 18px;
+        padding:7px 13px;
+        font-size:15px;
     }
 
     .toolbar-actions{
         display:grid;
-        grid-template-columns:auto auto auto 1fr 1fr;
+        grid-template-columns:repeat(6,minmax(0,1fr));
         width:100%;
         gap:5px;
     }
 
     .toolbar-actions .icon-btn{
-        width:32px;
-        height:32px;
+        width:100%;
+        height:34px;
     }
 
     #zoomValue{
-        min-width:34px;
-        font-size:10px;
+        width:100%;
+        min-width:0;
+        height:34px;
         display:flex;
         align-items:center;
         justify-content:center;
+        font-size:10px;
     }
 
-    .toolbar-actions .btn{
+    .toolbar-actions #cropCanvasBtn,
+    .toolbar-actions #workspaceGenerateBtn,
+    .toolbar-actions #exportPngBtn,
+    .toolbar-actions #exportJpgBtn{
         width:100%;
         min-width:0;
         min-height:34px;
-        padding:7px 6px;
-        font-size:10px;
+        margin:0;
+        padding:6px 5px;
         overflow:hidden;
         text-overflow:ellipsis;
+        white-space:nowrap;
+        font-size:10px;
     }
 
-    .btn-export{
-        width:100%;
-        padding:7px 5px;
-        font-size:9px;
+    .toolbar-actions #cropCanvasBtn,
+    .toolbar-actions #workspaceGenerateBtn,
+    .toolbar-actions #exportPngBtn,
+    .toolbar-actions #exportJpgBtn{
+        grid-column:span 3;
     }
 
     .canvas-workspace{
+        position:relative;
+        width:100%;
+        height:430px;
         min-height:430px;
-        height:62vh;
-        padding:14px;
+        padding:12px;
+        align-items:flex-start;
+        justify-content:center;
+        overflow:auto;
     }
 
     .canvas-wrapper{
-        max-width:calc(100vw - 28px);
-        max-height:calc(62vh - 28px);
-        border-width:4px;
+        width:auto;
+        max-width:100%;
+        border-width:3px;
     }
 
     #collageCanvas{
-        max-width:100%;
+        width:auto;
         height:auto;
+        max-width:100%;
     }
 
-    /* Crop modal */
     .crop-modal{
         padding:0;
         align-items:stretch;
@@ -1655,35 +1386,24 @@ body{
         border-radius:0;
     }
 
-    .crop-header{
-        padding:11px 12px;
-        flex:0 0 auto;
-    }
-
-    .crop-header strong{
-        font-size:13px;
-    }
+    .crop-header{padding:11px 12px}
+    .crop-header strong{font-size:13px}
 
     .crop-header small{
-        max-width:calc(100vw - 80px);
-        white-space:nowrap;
-        overflow:hidden;
-        text-overflow:ellipsis;
+        max-width:calc(100vw - 70px);
+        font-size:10px;
     }
 
     .crop-toolbar{
         padding:8px 10px;
         gap:6px;
-        flex:0 0 auto;
     }
 
-    .crop-tool-btn{
-        padding:7px 8px;
-        font-size:10px;
-    }
+    .crop-tool-btn{padding:7px 8px;font-size:10px}
 
     .crop-zoom{
         width:100%;
+        min-width:0;
         margin-left:0;
     }
 
@@ -1694,20 +1414,17 @@ body{
     }
 
     .crop-stage{
-        width:100%;
         min-height:0;
-        height:auto;
         flex:1 1 auto;
     }
 
-    .crop-footer{
-        padding:9px 10px;
-        gap:8px;
-        flex:0 0 auto;
-    }
+    .crop-handle{width:16px;height:16px}
 
-    .crop-footer > span{
-        line-height:1.35;
+    .crop-footer{
+        flex-direction:column;
+        align-items:stretch;
+        gap:8px;
+        padding:9px 10px;
     }
 
     .crop-actions{
@@ -1720,277 +1437,12 @@ body{
     .crop-actions button{
         width:100%;
         min-width:0;
-        margin-top:0;
-    }
-
-    .crop-handle{
-        width:16px;
-        height:16px;
+        margin:0;
     }
 }
 
-/* Very small phones */
-@media (max-width:380px){
-    .brand p{
-        display:none;
-    }
-
-    .toolbar-actions{
-        grid-template-columns:30px 34px 30px 1fr 1fr;
-    }
-
-    .toolbar-actions .btn{
-        font-size:9px;
-        padding-left:3px;
-        padding-right:3px;
-    }
-
-    .canvas-workspace{
-        height:58vh;
-        min-height:380px;
-    }
-}
-
-
-/* =========================================================
-   RESPONSIVE FINAL FIX v2
-   Prevent mobile overflow and keep preview canvas visible.
-========================================================= */
-
-*,
-*::before,
-*::after{
-    min-width:0;
-}
-
-html,
-body{
-    overflow-x:hidden !important;
-}
-
-@media (max-width:900px){
-
-    .header-inner{
-        width:100%;
-        max-width:100%;
-    }
-
-    .brand{
-        min-width:0;
-        flex:1 1 auto;
-    }
-
-    .header-status{
-        min-width:0;
-        max-width:42%;
-        flex:0 1 auto;
-    }
-
-    .workspace{
-        width:100%;
-        max-width:100%;
-        overflow:hidden;
-    }
-
-    .workspace-toolbar{
-        width:100%;
-        max-width:100%;
-        overflow:hidden;
-    }
-
-    .toolbar-actions{
-        width:100%;
-        max-width:100%;
-        box-sizing:border-box;
-    }
-
-    .canvas-workspace{
-        width:100%;
-        max-width:100%;
-        box-sizing:border-box;
-        overflow:auto;
-        -webkit-overflow-scrolling:touch;
-    }
-
-    .canvas-wrapper{
-        box-sizing:border-box;
-        width:auto !important;
-        height:auto !important;
-        max-width:100%;
-        max-height:none;
-        flex:0 1 auto;
-        overflow:hidden;
-    }
-
-    #collageCanvas{
-        display:block;
-        width:auto !important;
-        height:auto !important;
-        max-width:100% !important;
-        max-height:none !important;
-        object-fit:contain;
-    }
-}
-
-@media (max-width:600px){
-
-    .header-inner{
-        padding:9px 10px;
-        gap:8px;
-    }
-
-    .app-brand-logo,
-    .brand-logo-link{
-        width:40px;
-        height:40px;
-        flex-basis:40px;
-    }
-
-    .brand h1{
-        font-size:14px;
-    }
-
-    .brand p{
-        font-size:8px;
-    }
-
-    .header-status{
-        max-width:none;
-        gap:4px;
-        font-size:9px;
-    }
-
-    .workspace{
-        min-height:560px;
-    }
-
-    .workspace-toolbar{
-        min-height:0;
-        height:auto;
-        padding:11px 10px 10px;
-        gap:9px;
-    }
-
-    .workspace-toolbar > div:first-child{
-        width:100%;
-        gap:7px;
-    }
-
-    .workspace-toolbar h2,
-    .workspace-toolbar #previewInfo{
-        max-width:calc(100vw - 20px);
-        overflow:hidden;
-        text-overflow:ellipsis;
-        white-space:nowrap;
-    }
-
-    .workspace-toolbar h2{
-        font-size:19px;
-        padding:7px 12px;
-    }
-
-    .workspace-toolbar #previewInfo{
-        font-size:15px;
-        padding:7px 13px;
-    }
-
-    .toolbar-actions{
-        position:static !important;
-        transform:none !important;
-        display:grid !important;
-        grid-template-columns:repeat(6,minmax(0,1fr));
-        grid-auto-rows:minmax(34px,auto);
-        gap:5px;
-        align-items:stretch;
-    }
-
-    .toolbar-actions .icon-btn{
-        width:100%;
-        height:34px;
-        min-width:0;
-    }
-
-    #zoomValue{
-        width:100%;
-        min-width:0;
-        height:34px;
-        font-size:10px;
-    }
-
-    .toolbar-actions #cropCanvasBtn,
-    .toolbar-actions #workspaceGenerateBtn{
-        grid-column:span 3;
-        width:100%;
-        min-width:0;
-    }
-
-    .toolbar-actions #exportPngBtn,
-    .toolbar-actions #exportJpgBtn{
-        grid-column:span 3;
-        width:100%;
-        min-width:0;
-    }
-
-    .toolbar-actions .btn{
-        min-height:34px;
-        padding:6px 5px;
-        font-size:10px;
-        white-space:nowrap;
-        overflow:hidden;
-        text-overflow:ellipsis;
-    }
-
-    .canvas-workspace{
-        height:auto;
-        min-height:430px;
-        max-height:70vh;
-        padding:12px;
-        align-items:flex-start;
-        justify-content:center;
-        overflow:auto;
-    }
-
-    .canvas-wrapper{
-        width:auto !important;
-        max-width:100% !important;
-        margin:0 auto;
-        border-width:3px;
-    }
-
-    #collageCanvas{
-        width:auto !important;
-        max-width:100% !important;
-        height:auto !important;
-    }
-
-    /* Crop dialog */
-    .crop-dialog{
-        width:100%;
-        max-width:100%;
-        height:100dvh;
-        max-height:100dvh;
-        border-radius:0;
-    }
-
-    .crop-stage{
-        width:100%;
-        min-width:0;
-        min-height:0;
-        flex:1 1 auto;
-    }
-
-    .crop-stage canvas{
-        max-width:none !important;
-    }
-
-    .crop-footer{
-        width:100%;
-        box-sizing:border-box;
-    }
-}
-
-@media (max-width:380px){
-
+/* VERY SMALL PHONE */
+@media(max-width:380px){
     .app-brand-logo,
     .brand-logo-link{
         width:36px;
@@ -1998,28 +1450,16 @@ body{
         flex-basis:36px;
     }
 
-    .brand h1{
-        font-size:13px;
-    }
+    .brand h1{font-size:13px}
+    .brand p{display:none}
+    .header-status{font-size:8px}
 
-    .header-status{
-        font-size:8px;
-    }
-
-    .toolbar-actions{
-        grid-template-columns:repeat(6,minmax(0,1fr));
-        gap:4px;
-    }
-
-    .toolbar-actions .btn{
-        font-size:9px;
-        padding-left:3px;
-        padding-right:3px;
-    }
+    .toolbar-actions{gap:4px}
+    .toolbar-actions .btn{font-size:9px;padding-left:3px;padding-right:3px}
 
     .canvas-workspace{
+        height:380px;
         min-height:380px;
-        max-height:68vh;
         padding:10px;
     }
 }
