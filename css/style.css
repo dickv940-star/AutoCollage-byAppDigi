@@ -1750,3 +1750,276 @@ body{
         min-height:380px;
     }
 }
+
+
+/* =========================================================
+   RESPONSIVE FINAL FIX v2
+   Prevent mobile overflow and keep preview canvas visible.
+========================================================= */
+
+*,
+*::before,
+*::after{
+    min-width:0;
+}
+
+html,
+body{
+    overflow-x:hidden !important;
+}
+
+@media (max-width:900px){
+
+    .header-inner{
+        width:100%;
+        max-width:100%;
+    }
+
+    .brand{
+        min-width:0;
+        flex:1 1 auto;
+    }
+
+    .header-status{
+        min-width:0;
+        max-width:42%;
+        flex:0 1 auto;
+    }
+
+    .workspace{
+        width:100%;
+        max-width:100%;
+        overflow:hidden;
+    }
+
+    .workspace-toolbar{
+        width:100%;
+        max-width:100%;
+        overflow:hidden;
+    }
+
+    .toolbar-actions{
+        width:100%;
+        max-width:100%;
+        box-sizing:border-box;
+    }
+
+    .canvas-workspace{
+        width:100%;
+        max-width:100%;
+        box-sizing:border-box;
+        overflow:auto;
+        -webkit-overflow-scrolling:touch;
+    }
+
+    .canvas-wrapper{
+        box-sizing:border-box;
+        width:auto !important;
+        height:auto !important;
+        max-width:100%;
+        max-height:none;
+        flex:0 1 auto;
+        overflow:hidden;
+    }
+
+    #collageCanvas{
+        display:block;
+        width:auto !important;
+        height:auto !important;
+        max-width:100% !important;
+        max-height:none !important;
+        object-fit:contain;
+    }
+}
+
+@media (max-width:600px){
+
+    .header-inner{
+        padding:9px 10px;
+        gap:8px;
+    }
+
+    .app-brand-logo,
+    .brand-logo-link{
+        width:40px;
+        height:40px;
+        flex-basis:40px;
+    }
+
+    .brand h1{
+        font-size:14px;
+    }
+
+    .brand p{
+        font-size:8px;
+    }
+
+    .header-status{
+        max-width:none;
+        gap:4px;
+        font-size:9px;
+    }
+
+    .workspace{
+        min-height:560px;
+    }
+
+    .workspace-toolbar{
+        min-height:0;
+        height:auto;
+        padding:11px 10px 10px;
+        gap:9px;
+    }
+
+    .workspace-toolbar > div:first-child{
+        width:100%;
+        gap:7px;
+    }
+
+    .workspace-toolbar h2,
+    .workspace-toolbar #previewInfo{
+        max-width:calc(100vw - 20px);
+        overflow:hidden;
+        text-overflow:ellipsis;
+        white-space:nowrap;
+    }
+
+    .workspace-toolbar h2{
+        font-size:19px;
+        padding:7px 12px;
+    }
+
+    .workspace-toolbar #previewInfo{
+        font-size:15px;
+        padding:7px 13px;
+    }
+
+    .toolbar-actions{
+        position:static !important;
+        transform:none !important;
+        display:grid !important;
+        grid-template-columns:repeat(6,minmax(0,1fr));
+        grid-auto-rows:minmax(34px,auto);
+        gap:5px;
+        align-items:stretch;
+    }
+
+    .toolbar-actions .icon-btn{
+        width:100%;
+        height:34px;
+        min-width:0;
+    }
+
+    #zoomValue{
+        width:100%;
+        min-width:0;
+        height:34px;
+        font-size:10px;
+    }
+
+    .toolbar-actions #cropCanvasBtn,
+    .toolbar-actions #workspaceGenerateBtn{
+        grid-column:span 3;
+        width:100%;
+        min-width:0;
+    }
+
+    .toolbar-actions #exportPngBtn,
+    .toolbar-actions #exportJpgBtn{
+        grid-column:span 3;
+        width:100%;
+        min-width:0;
+    }
+
+    .toolbar-actions .btn{
+        min-height:34px;
+        padding:6px 5px;
+        font-size:10px;
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+    }
+
+    .canvas-workspace{
+        height:auto;
+        min-height:430px;
+        max-height:70vh;
+        padding:12px;
+        align-items:flex-start;
+        justify-content:center;
+        overflow:auto;
+    }
+
+    .canvas-wrapper{
+        width:auto !important;
+        max-width:100% !important;
+        margin:0 auto;
+        border-width:3px;
+    }
+
+    #collageCanvas{
+        width:auto !important;
+        max-width:100% !important;
+        height:auto !important;
+    }
+
+    /* Crop dialog */
+    .crop-dialog{
+        width:100%;
+        max-width:100%;
+        height:100dvh;
+        max-height:100dvh;
+        border-radius:0;
+    }
+
+    .crop-stage{
+        width:100%;
+        min-width:0;
+        min-height:0;
+        flex:1 1 auto;
+    }
+
+    .crop-stage canvas{
+        max-width:none !important;
+    }
+
+    .crop-footer{
+        width:100%;
+        box-sizing:border-box;
+    }
+}
+
+@media (max-width:380px){
+
+    .app-brand-logo,
+    .brand-logo-link{
+        width:36px;
+        height:36px;
+        flex-basis:36px;
+    }
+
+    .brand h1{
+        font-size:13px;
+    }
+
+    .header-status{
+        font-size:8px;
+    }
+
+    .toolbar-actions{
+        grid-template-columns:repeat(6,minmax(0,1fr));
+        gap:4px;
+    }
+
+    .toolbar-actions .btn{
+        font-size:9px;
+        padding-left:3px;
+        padding-right:3px;
+    }
+
+    .canvas-workspace{
+        min-height:380px;
+        max-height:68vh;
+        padding:10px;
+    }
+}
