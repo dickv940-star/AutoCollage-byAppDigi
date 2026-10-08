@@ -1674,6 +1674,26 @@ if (zoomInBtn) {
     );
 }
 
+/* Recalculate responsive preview whenever the viewport changes. */
+let previewResizeTimer = null;
+window.addEventListener("resize", () => {
+    clearTimeout(previewResizeTimer);
+    previewResizeTimer = setTimeout(() => {
+        if (!state.canvas) return;
+        renderPreview();
+
+        if (state.crop.mode === "canvas" && state.crop.item) {
+            const placement = state.placements.find(
+                p => p.source === state.crop.item
+            );
+            if (placement) {
+                showCanvasCrop(placement);
+            }
+        }
+    }, 50);
+});
+
+
 /* =========================================================
    EVENTS
 ========================================================= */
