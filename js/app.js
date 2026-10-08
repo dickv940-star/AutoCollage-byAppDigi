@@ -15,6 +15,8 @@ const state = {
     zoom: 0.5,
     generated: false,
     template: null,
+    frames: [],
+    canvasReady: false,
     drag: {
         active: false,
         placement: null,
@@ -81,6 +83,10 @@ const canvasSizeInfo = $("#canvasSizeInfo");
 const resolutionInfo = $("#resolutionInfo");
 const layoutStatus = $("#layoutStatus");
 const fileWarning = $("#fileWarning");
+const createCanvasBtn = $("#createCanvasBtn");
+const addFrameBtn = $("#addFrameBtn");
+const frameWidthInput = $("#frameWidth");
+const frameHeightInput = $("#frameHeight");
 const cropModal=$("#cropModal"),cropCanvas=$("#cropCanvas"),cropStage=$("#cropStage"),cropSelection=$("#cropSelection"),cropTitle=$("#cropTitle"),cropSubtitle=$("#cropSubtitle"),cropRatioLabel=$("#cropRatioLabel"),cropZoom=$("#cropZoom"),cropResetBtn=$("#cropResetBtn"),cropCloseBtn=$("#cropCloseBtn"),cropCancelBtn=$("#cropCancelBtn"),cropSaveBtn=$("#cropSaveBtn"),cropCanvasBtn=$("#cropCanvasBtn"),workspaceGenerateBtn=$("#workspaceGenerateBtn");
 
 function cmToPx(cm, dpi) {
@@ -202,6 +208,8 @@ async function processFiles(fileArray) {
     state.placements = [];
     state.generated = false;
 
+    // Frame/layout tetap dipertahankan saat foto baru di-upload.
+    // Foto hanya mengisi frame yang sudah dibuat.
     for (const file of files) {
         const parsed = parseFilename(file.name);
 
@@ -685,15 +693,31 @@ function renderCollage() {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    for (const item of state.placements) {
-        drawPhoto(
-            ctx,
-            item,
-            cmToPx(item.x, dpi),
-            cmToPx(item.y, dpi),
-            cmToPx(item.width, dpi),
-            cmToPx(item.height, dpi)
-        );
+    const drawItems = state.placements.length ? state.placements : state.frames;
+    for (const item of drawItems) {
+        const x = cmToPx(item.x, dpi);
+        const y = cmToPx(item.y, dpi);
+        const w = cmToPx(item.width, dpi);
+        const h = cmToPx(item.height, dpi);
+
+        if (item.source?.image) {
+            drawPhoto(ctx, item, x, y, w, h);
+        } else {
+            ctx.save();
+            ctx.fillStyle = "#e9edf2";
+            ctx.fillRect(x, y, w, h);
+            ctx.strokeStyle = "#7c8794";
+            ctx.lineWidth = Math.max(2, dpi / 150);
+            ctx.setLineDash([Math.max(8, dpi / 30), Math.max(5, dpi / 60)]);
+            ctx.strokeRect(x, y, w, h);
+            ctx.setLineDash([]);
+            ctx.fillStyle = "#667085";
+            ctx.font = `600 ${Math.max(18, dpi / 18)}px Arial`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(item.sizeKey || "FRAME", x + w / 2, y + h / 2);
+            ctx.restore();
+        }
     }
 
     renderPreview();
@@ -738,22 +762,32 @@ function loadTemplate() {
 }
 
 function saveTemplate() {
-    if (!state.generated || !state.canvas || !state.placements.length) {
-        alert("Buat dan rapikan collage terlebih dahulu.");
+    if (!state.canvas) {
+        alert("Buat Canvas terlebih dahulu.");
+        return;
+    }
+
+    const sourceFrames = state.frames.length
+        ? state.frames
+        : state.placements;
+
+    if (!sourceFrames.length) {
+        alert("Tambahkan minimal satu frame foto.");
         return;
     }
 
     const template = {
+        version: 2,
         widthCm: state.canvas.widthCm,
         heightCm: state.canvas.heightCm,
         dpi: state.canvas.dpi,
-        placements: state.placements.map((p, index) => ({
+        frames: sourceFrames.map((p, index) => ({
             index,
-            sizeKey: p.sizeKey,
-            x: p.x,
-            y: p.y,
-            width: p.width,
-            height: p.height
+            sizeKey: p.sizeKey || `${p.width}x${p.height}`,
+            x: n(p.x),
+            y: n(p.y),
+            width: n(p.width),
+            height: n(p.height)
         }))
     };
 
@@ -785,18 +819,18 @@ function updateTemplateButton() {
 }
 
 function createTemplatePlacements(queue) {
-    if (!state.template) return null;
-
     const t = state.template;
+    if (!t) return null;
+
     if (
         Math.abs(n(t.widthCm) - state.canvas.widthCm) > 0.0001 ||
         Math.abs(n(t.heightCm) - state.canvas.heightCm) > 0.0001
-    ) {
-        return null;
-    }
+    ) return null;
+
+    const slots = t.frames || t.placements || [];
+    if (!slots.length) return null;
 
     const bySize = new Map();
-
     for (const item of queue) {
         if (!bySize.has(item.sizeKey)) bySize.set(item.sizeKey, []);
         bySize.get(item.sizeKey).push(item);
@@ -804,13 +838,18 @@ function createTemplatePlacements(queue) {
 
     const used = new Map();
     const placements = [];
+    const missing = [];
 
-    for (const slot of t.placements || []) {
-        const list = bySize.get(slot.sizeKey);
-        if (!list || !list.length) continue;
-
+    for (const slot of slots) {
+        const list = bySize.get(slot.sizeKey) || [];
         const index = used.get(slot.sizeKey) || 0;
-        const item = list[index % list.length];
+
+        if (!list.length || index >= list.length) {
+            missing.push(slot.sizeKey);
+            continue;
+        }
+
+        const item = list[index];
         used.set(slot.sizeKey, index + 1);
 
         placements.push({
@@ -822,6 +861,7 @@ function createTemplatePlacements(queue) {
         });
     }
 
+    state.templateMissing = missing;
     return placements.length ? placements : null;
 }
 
@@ -834,7 +874,7 @@ loadTemplate();
 function generateCollage() {
     try {
         if (!state.files.length) {
-            alert("Upload foto terlebih dahulu.");
+            alert("Canvas dan frame sudah bisa dibuat tanpa foto. Upload foto terlebih dahulu untuk menjalankan Auto Collage.");
             return;
         }
 
@@ -844,25 +884,19 @@ function generateCollage() {
         }
 
         const incomplete = [...state.groups.values()]
-            .filter(g =>
-                [...state.sizes.keys()].some(k => !g.files.has(k))
-            );
+            .filter(g => [...state.sizes.keys()].some(k => !g.files.has(k)));
 
         if (incomplete.length) {
-            const names = incomplete
-                .map(g => "#" + g.id)
-                .join(", ");
-
+            const names = incomplete.map(g => "#" + g.id).join(", ");
             if (!confirm(
                 "Pasangan belum lengkap: " + names +
                 "\n\nFoto tidak akan dipasangkan dengan nomor lain. Lanjutkan?"
             )) return;
         }
 
-        state.canvas = createCanvasState();
+        if (!state.canvas) state.canvas = createCanvasState();
 
         const queue = createPrintQueue();
-
         if (!queue.length) {
             alert("Jumlah foto yang ingin dicetak masih 0.");
             return;
@@ -873,18 +907,43 @@ function generateCollage() {
 
         let templatePlacements = createTemplatePlacements(queue);
 
-        if (templatePlacements) {
-            const validTemplate = validatePlacements(
+        // Jika frame sudah dibuat pada canvas aktif, gunakan layout tersebut.
+        if (!templatePlacements && state.frames.length) {
+            const bySize = new Map();
+            for (const item of queue) {
+                if (!bySize.has(item.sizeKey)) bySize.set(item.sizeKey, []);
+                bySize.get(item.sizeKey).push(item);
+            }
+
+            const used = new Map();
+            templatePlacements = [];
+            for (const frame of state.frames) {
+                const list = bySize.get(frame.sizeKey) || [];
+                const index = used.get(frame.sizeKey) || 0;
+                if (!list[index]) continue;
+
+                const item = list[index];
+                used.set(frame.sizeKey, index + 1);
+                templatePlacements.push({
+                    ...item,
+                    x: frame.x,
+                    y: frame.y,
+                    width: frame.width,
+                    height: frame.height
+                });
+            }
+        }
+
+        if (templatePlacements?.length) {
+            const valid = validatePlacements(
                 templatePlacements,
                 state.canvas.widthCm,
                 state.canvas.heightCm
             );
-
-            if (!validTemplate.valid) {
-                alert("Template tidak valid: " + validTemplate.message);
+            if (!valid.valid) {
+                alert("Layout frame tidak valid: " + valid.message);
                 return;
             }
-
             state.placements = templatePlacements;
         } else {
             let result = packPhotos(
@@ -901,11 +960,7 @@ function generateCollage() {
             }
 
             if (autoSpacing?.checked) {
-                result = applyAutoSpacing(
-                    result,
-                    state.canvas.widthCm,
-                    margin
-                );
+                result = applyAutoSpacing(result, state.canvas.widthCm, margin);
             }
 
             const valid = validatePlacements(
@@ -913,7 +968,6 @@ function generateCollage() {
                 state.canvas.widthCm,
                 state.canvas.heightCm
             );
-
             if (!valid.valid) {
                 alert(valid.message);
                 return;
@@ -921,11 +975,15 @@ function generateCollage() {
 
             state.placements = result.placements;
         }
-        state.generated = true;
 
+        state.generated = true;
         renderCollage();
         updateInfo();
 
+        if (state.templateMissing?.length) {
+            alert("Beberapa frame belum terisi karena foto dengan ukuran berikut tidak tersedia: " +
+                [...new Set(state.templateMissing)].join(", "));
+        }
     } catch (e) {
         console.error(e);
         alert(e.message || "Terjadi kesalahan.");
@@ -1009,9 +1067,12 @@ function findPlacementAtPoint(px, py) {
     const dpi = state.canvas?.dpi || 300;
     const xCm = px / cmToPx(1, dpi);
     const yCm = py / cmToPx(1, dpi);
+    const source = state.generated && state.placements.length
+        ? state.placements
+        : state.frames;
 
-    for (let i = state.placements.length - 1; i >= 0; i--) {
-        const p = state.placements[i];
+    for (let i = source.length - 1; i >= 0; i--) {
+        const p = source[i];
         if (
             xCm >= p.x &&
             xCm <= p.x + p.width &&
@@ -1025,7 +1086,7 @@ function findPlacementAtPoint(px, py) {
 }
 
 function startWorkspaceDrag(e) {
-    if (!state.generated || !previewCanvas) return;
+    if (!state.canvas || !previewCanvas) return;
 
     const point = workspacePoint(e);
     const placement = findPlacementAtPoint(point.x, point.y);
@@ -1179,39 +1240,67 @@ function cropClampImage(){
 function cropRender(){
     if(!state.crop.item||!cropStage)return;
 
-    const d=cropDisplay();
-    if(!d)return;
-    state.crop.display=d;
+    const d=state.crop.item.image ? cropDisplay() : null;
 
-    cropCanvas.width=Math.max(1,Math.round(d.width));
-    cropCanvas.height=Math.max(1,Math.round(d.height));
-    cropCanvas.style.position="absolute";
-    cropCanvas.style.left=(d.left+(state.crop.imageOffsetX||0)*d.scale)+"px";
-    cropCanvas.style.top=(d.top+(state.crop.imageOffsetY||0)*d.scale)+"px";
-    cropCanvas.style.width=d.width+"px";
-    cropCanvas.style.height=d.height+"px";
-    cropCanvas.style.pointerEvents="auto";
-    cropCanvas.style.touchAction="none";
-    cropCanvas.style.zIndex="1";
+    if(!d){
+        const sw=Math.max(1,cropStage.clientWidth);
+        const sh=Math.max(1,cropStage.clientHeight);
+        cropCanvas.width=sw;
+        cropCanvas.height=sh;
+        cropCanvas.style.position="absolute";
+        cropCanvas.style.left="0px";
+        cropCanvas.style.top="0px";
+        cropCanvas.style.width=sw+"px";
+        cropCanvas.style.height=sh+"px";
+        cropCanvas.style.zIndex="1";
 
-    const ctx=cropCanvas.getContext("2d");
-    ctx.clearRect(0,0,cropCanvas.width,cropCanvas.height);
-    ctx.filter="none";
-    ctx.drawImage(state.crop.item.image,0,0,cropCanvas.width,cropCanvas.height);
+        const ctx=cropCanvas.getContext("2d");
+        ctx.clearRect(0,0,sw,sh);
+        ctx.fillStyle="#20252b";
+        ctx.fillRect(0,0,sw,sh);
 
-    if(cropHasSelection&&state.crop.selectionStage){
         const r=state.crop.selectionStage;
-        cropSelection.style.display="block";
-        cropSelection.style.left=r.x+"px";
-        cropSelection.style.top=r.y+"px";
-        cropSelection.style.width=r.width+"px";
-        cropSelection.style.height=r.height+"px";
-        cropSelection.style.zIndex="5";
+        if(r){
+            ctx.save();
+            ctx.fillStyle="#e9edf2";
+            ctx.fillRect(r.x,r.y,r.width,r.height);
+            ctx.strokeStyle="#667085";
+            ctx.lineWidth=2;
+            ctx.setLineDash([8,5]);
+            ctx.strokeRect(r.x,r.y,r.width,r.height);
+            ctx.setLineDash([]);
+            ctx.fillStyle="#667085";
+            ctx.font="600 18px Arial";
+            ctx.textAlign="center";
+            ctx.textBaseline="middle";
+            ctx.fillText("FRAME KOSONG",r.x+r.width/2,r.y+r.height/2);
+            ctx.restore();
+        }
     }else{
-        cropSelection.style.display="none";
-    }
-}
+        state.crop.display=d;
+        cropCanvas.width=Math.max(1,Math.round(d.width));
+        cropCanvas.height=Math.max(1,Math.round(d.height));
+        cropCanvas.style.position="absolute";
+        cropCanvas.style.left=(d.left+(state.crop.imageOffsetX||0)*d.scale)+"px";
+        cropCanvas.style.top=(d.top+(state.crop.imageOffsetY||0)*d.scale)+"px";
+        cropCanvas.style.width=d.width+"px";
+        cropCanvas.style.height=d.height+"px";
+        cropCanvas.style.pointerEvents="auto";
+        cropCanvas.style.touchAction="none";
+        cropCanvas.style.zIndex="1";
 
+        const ctx=cropCanvas.getContext("2d");
+        ctx.clearRect(0,0,cropCanvas.width,cropCanvas.height);
+        ctx.filter="none";
+        ctx.drawImage(state.crop.item.image,0,0,cropCanvas.width,cropCanvas.height);
+    }
+
+    cropSelection.style.left=state.crop.selectionStage.x+"px";
+    cropSelection.style.top=state.crop.selectionStage.y+"px";
+    cropSelection.style.width=state.crop.selectionStage.width+"px";
+    cropSelection.style.height=state.crop.selectionStage.height+"px";
+    cropSelection.style.zIndex="3";
+}
 function cropInitSelection(){
     const d=cropDisplay();
     if(!d)return;
@@ -1245,87 +1334,82 @@ function cropInitSelection(){
 }
 
 function cropSourceRectFromSelection(){
-    if(!state.crop.item||!state.crop.selectionStage)return;
+    const i=state.crop.item;
+    const s=state.crop.selectionStage;
+    if(!i||!s)return null;
+
+    if(!i.image){
+        state.crop.sourceRect=null;
+        return null;
+    }
 
     const d=state.crop.display||cropDisplay();
-    const sel=state.crop.selectionStage;
-    const i=state.crop.item.image;
+    if(!d||!d.scale)return null;
 
-    // Frame/canvas diterjemahkan ke koordinat foto hanya untuk
-    // menentukan area yang ditampilkan. File foto asli tetap utuh.
-    let x=(sel.x-d.left)/d.scale-(state.crop.imageOffsetX||0);
-    let y=(sel.y-d.top)/d.scale-(state.crop.imageOffsetY||0);
-    let w=sel.width/d.scale;
-    let h=sel.height/d.scale;
-
-    w=Math.min(i.naturalWidth,w);
-    h=Math.min(i.naturalHeight,h);
-    x=Math.max(0,Math.min(x,i.naturalWidth-w));
-    y=Math.max(0,Math.min(y,i.naturalHeight-h));
+    const x=((s.x-d.left)/d.scale)/i.image.naturalWidth;
+    const y=((s.y-d.top)/d.scale)/i.image.naturalHeight;
+    const w=(s.width/d.scale)/i.image.naturalWidth;
+    const h=(s.height/d.scale)/i.image.naturalHeight;
 
     state.crop.sourceRect={
-        x:x/i.naturalWidth,
-        y:y/i.naturalHeight,
-        width:w/i.naturalWidth,
-        height:h/i.naturalHeight
+        x:Math.max(0,Math.min(1,x)),
+        y:Math.max(0,Math.min(1,y)),
+        width:Math.max(.0001,Math.min(1,w)),
+        height:Math.max(.0001,Math.min(1,h))
     };
+    return state.crop.sourceRect;
 }
 function openCrop(item){
-    if(!item?.image)return;
+    if(!item)return;
 
     state.crop.item=item;
-    state.crop.aspect=Math.max(.05,item.width/item.height);
-    state.crop.zoom=Math.max(1,Number(item.crop?.canvas?.zoom)||1);
+    state.crop.zoom=1;
     state.crop.imageOffsetX=0;
     state.crop.imageOffsetY=0;
-    state.crop.movingImage=false;
-    state.crop.movingFrame=false;
-    state.crop.resizing=false;
+    state.crop.sourceRect=null;
 
-    cropTitle.textContent="Crop Canvas Foto #"+item.id;
-    cropSubtitle.textContent=item.name+" · "+item.sizeKey;
-    cropRatioLabel.textContent="Canvas: "+item.width+" × "+item.height+" cm";
-    cropZoom.value=String(state.crop.zoom);
+    const hasImage=!!item.image;
+    cropTitle.textContent=hasImage ? "Atur Canvas Foto" : "Buat / Atur Frame Foto";
+    cropSubtitle.textContent=hasImage
+        ? "Geser foto di dalam frame. Foto asli tidak diubah."
+        : "Frame kosong — foto dapat dimasukkan setelahnya.";
+    cropZoom.disabled=!hasImage;
+
+    const ratio=Math.max(.05,n(item.width,2)/Math.max(.05,n(item.height,3)));
+    state.crop.aspect=ratio;
+
     cropModal.classList.remove("hidden");
 
     requestAnimationFrame(()=>{
-        cropInitSelection();
+        const sw=Math.max(1,cropStage.clientWidth);
+        const sh=Math.max(1,cropStage.clientHeight);
+
+        let w=Math.min(sw*.62, sh*.62*ratio);
+        let h=w/ratio;
+
+        if(h>sh*.62){h=sh*.62;w=h*ratio;}
 
         const saved=item.crop?.canvas;
-        const d=cropDisplay();
-        const sel=state.crop.selectionStage;
+        state.crop.selectionStage={
+            x:(sw-w)/2,
+            y:(sh-h)/2,
+            width:w,
+            height:h
+        };
 
-        if(saved?.sourceRect?.width>0&&saved?.sourceRect?.height>0){
-            // Pulihkan posisi foto berdasarkan frame/canvas yang tersimpan.
-            const sr=saved.sourceRect;
-            const targetX=n(sr.x)*item.image.naturalWidth;
-            const targetY=n(sr.y)*item.image.naturalHeight;
-            const targetW=n(sr.width)*item.image.naturalWidth;
-            const targetH=n(sr.height)*item.image.naturalHeight;
-            const targetCx=targetX+targetW/2;
-            const targetCy=targetY+targetH/2;
-
-            state.crop.imageOffsetX=
-                ((sel.x+sel.width/2)-d.left)/d.scale-targetCx;
-            state.crop.imageOffsetY=
-                ((sel.y+sel.height/2)-d.top)/d.scale-targetCy;
-        }else if(saved?.centerX!==undefined&&saved?.centerY!==undefined){
-            const targetCx=Number(saved.centerX)*item.image.naturalWidth;
-            const targetCy=Number(saved.centerY)*item.image.naturalHeight;
-
-            state.crop.imageOffsetX=
-                ((sel.x+sel.width/2)-d.left)/d.scale-targetCx;
-            state.crop.imageOffsetY=
-                ((sel.y+sel.height/2)-d.top)/d.scale-targetCy;
+        if(saved?.sourceRect && hasImage){
+            state.crop.sourceRect={...saved.sourceRect};
         }
 
-        cropClampFrame();
-        cropClampImage();
-        cropSourceRectFromSelection();
+        cropRatioLabel.textContent="Rasio: "+(ratio>=1?"Landscape":"Portrait");
+
+        if(frameWidthInput) frameWidthInput.value=n(item.width,2);
+        if(frameHeightInput) frameHeightInput.value=n(item.height,3);
+
+        cropHasSelection=true;
         cropRender();
     });
 }
-
 function closeCrop(){
     cropModal.classList.add("hidden");
     state.crop.item=null;
@@ -1557,47 +1641,58 @@ function saveCrop(){
     if(!state.crop.item||!cropHasSelection)return;
 
     const item=state.crop.item;
-    cropSourceRectFromSelection();
+    const width=Math.max(.1,n(frameWidthInput?.value,item.width||2));
+    const height=Math.max(.1,n(frameHeightInput?.value,item.height||3));
 
-    const sr=state.crop.sourceRect;
-    if(!sr){
-        alert("Area canvas belum valid.");
-        return;
+    item.width=width;
+    item.height=height;
+    item.widthCm=width;
+    item.heightCm=height;
+    item.sizeKey=`${width}x${height}`;
+
+    if(item.image){
+        cropSourceRectFromSelection();
+        const sr=state.crop.sourceRect;
+        if(sr){
+            item.crop={
+                canvas:{
+                    width,
+                    height,
+                    ratio:state.crop.aspect,
+                    zoom:Math.max(1,Number(state.crop.zoom)||1),
+                    sourceRect:{
+                        x:Math.max(0,Math.min(1,n(sr.x))),
+                        y:Math.max(0,Math.min(1,n(sr.y))),
+                        width:Math.max(.0001,Math.min(1,n(sr.width))),
+                        height:Math.max(.0001,Math.min(1,n(sr.height)))
+                    },
+                    centerX:Math.max(0,Math.min(1,n(sr.x)+n(sr.width)/2)),
+                    centerY:Math.max(0,Math.min(1,n(sr.y)+n(sr.height)/2)),
+                    frameRatio:state.crop.selectionStage.width/
+                        Math.max(1,state.crop.selectionStage.height)
+                }
+            };
+        }
     }
 
-    item.crop={
-        canvas:{
-            width:item.width,
-            height:item.height,
-            ratio:state.crop.aspect,
-            zoom:Math.max(1,Number(state.crop.zoom)||1),
-
-            // Area ini adalah koordinat CANVAS/FRAME terhadap foto,
-            // bukan file foto yang dipotong atau diubah.
-            sourceRect:{
-                x:Math.max(0,Math.min(1,n(sr.x))),
-                y:Math.max(0,Math.min(1,n(sr.y))),
-                width:Math.max(.0001,Math.min(1,n(sr.width))),
-                height:Math.max(.0001,Math.min(1,n(sr.height)))
-            },
-
-            // Tetap simpan data lama agar crop versi sebelumnya
-            // masih dapat dibuka.
-            centerX:Math.max(0,Math.min(1,
-                n(sr.x)+n(sr.width)/2
-            )),
-            centerY:Math.max(0,Math.min(1,
-                n(sr.y)+n(sr.height)/2
-            )),
-            frameRatio:state.crop.selectionStage.width/
-                Math.max(1,state.crop.selectionStage.height)
-        }
+    // Empty frame dibuat/diubah tanpa membutuhkan foto.
+    const existing=state.frames.findIndex(x=>x._frameId===item._frameId);
+    const frame={
+        _frameId:item._frameId||("frame-"+Date.now()+"-"+Math.random().toString(36).slice(2,7)),
+        sizeKey:item.sizeKey,
+        x:n(item.x,1),
+        y:n(item.y,1),
+        width,
+        height,
+        source:item.image?item.source||item:null
     };
 
-    closeCrop();
-    renderPairs();
+    if(existing>=0) state.frames[existing]={...state.frames[existing],...frame};
+    else state.frames.push(frame);
 
-    if(state.generated)renderCollage();
+    closeCrop();
+    renderCollage();
+    updateInfo();
 }
 let cropResizeTimer=null;
 window.addEventListener("resize",()=>{
@@ -1730,16 +1825,16 @@ if(fileList){
 }
 
 function openFirstCrop(){
-    for(const group of state.groups.values()){
-        for(const item of group.files.values()){
-            if(item?.image){
-                openCrop(item);
-                return;
-            }
-        }
+    if(!state.canvas){
+        ensureCanvas();
     }
 
-    alert("Upload foto terlebih dahulu.");
+    if(state.frames.length){
+        openCrop(state.frames[state.frames.length-1]);
+        return;
+    }
+
+    addEmptyFrame();
 }
 
 if(cropCanvasBtn)
@@ -1747,6 +1842,49 @@ if(cropCanvasBtn)
 
 if(workspaceGenerateBtn)
     workspaceGenerateBtn.addEventListener("click",generateCollage);
+
+/* =========================================================
+   CANVAS + FRAME FIRST WORKFLOW
+========================================================= */
+
+function ensureCanvas(){
+    if(!state.canvas) state.canvas=createCanvasState();
+    state.canvasReady=true;
+    renderCollage();
+    updateInfo();
+}
+
+function addEmptyFrame(){
+    ensureCanvas();
+    const width=Math.max(.1,n(frameWidthInput?.value,2));
+    const height=Math.max(.1,n(frameHeightInput?.value,3));
+    const frame={
+        _frameId:"frame-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),
+        sizeKey:`${width}x${height}`,
+        x:Math.max(0,(state.canvas.widthCm-width)/2),
+        y:Math.max(0,(state.canvas.heightCm-height)/2),
+        width,
+        height,
+        source:null
+    };
+    state.frames.push(frame);
+    openCrop(frame);
+}
+
+if(createCanvasBtn){
+    createCanvasBtn.addEventListener("click",()=>{
+        try{
+            state.canvas=createCanvasState();
+            state.canvasReady=true;
+            state.frames=[];
+            state.placements=[];
+            state.generated=false;
+            renderCollage();
+            updateInfo();
+        }catch(e){alert(e.message||"Gagal membuat canvas.");}
+    });
+}
+if(addFrameBtn) addFrameBtn.addEventListener("click",addEmptyFrame);
 
 /* =========================================================
    TEMPLATE BUTTON
@@ -1859,7 +1997,7 @@ function updateInfo() {
 
     if (placedCount) {
         placedCount.textContent =
-            String(state.generated ? state.placements.length : 0);
+            String(state.generated ? state.placements.length : state.frames.length);
     }
 
     if (layoutStatus) {
@@ -1923,7 +2061,9 @@ if (resetBtn) {
         state.groups.clear();
         state.sizes.clear();
         state.placements = [];
+        state.frames = [];
         state.canvas = null;
+        state.canvasReady = false;
         state.generated = false;
 
         if (fileInput) fileInput.value = "";
