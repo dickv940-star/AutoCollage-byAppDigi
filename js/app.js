@@ -1710,37 +1710,52 @@ function refreshCanvasFromInputs() {
 
     if (!state.generated || !state.canvas) return;
 
-    const next = createCanvasState();
-    const previous = state.canvas;
+    const previousCanvas = state.canvas;
+    const nextCanvas = createCanvasState();
 
-    state.canvas = next;
+    state.canvas = nextCanvas;
 
-    // Re-pack using the new physical canvas size while preserving current
-    // photo selections/crops.
+    // Rebuild the layout from the same current print queue so the physical
+    // canvas always follows Lebar × Tinggi in the left panel.
+    const queue = createPrintQueue();
     const margin = Math.max(0, n(marginInput?.value, 0.5));
     const gap = Math.max(0, n(gapInput?.value, 0.3));
+
     let result = packPhotos(
-        state.placements.map(item => item.source),
-        next.widthCm,
-        next.heightCm,
+        queue,
+        nextCanvas.widthCm,
+        nextCanvas.heightCm,
         margin,
         gap
     );
 
-    // If the helper cannot rebuild from the current placement list, keep the
-    // existing placement model and only refresh the preview bitmap.
-    if (result && result.success && Array.isArray(result.placements)) {
-        state.placements = result.placements;
-    } else {
-        state.canvas = previous;
+    if (!result.success) {
+        // Do not destroy the previous valid canvas when the new dimensions
+        // are too small for the existing print queue.
+        state.canvas = previousCanvas;
         return;
     }
 
     if (autoSpacing?.checked) {
-        const spaced = applyAutoSpacing(state.placements, next.widthCm, margin);
-        if (spaced?.placements) state.placements = spaced.placements;
+        result = applyAutoSpacing(
+            result,
+            nextCanvas.widthCm,
+            margin
+        );
     }
 
+    const valid = validatePlacements(
+        result.placements,
+        nextCanvas.widthCm,
+        nextCanvas.heightCm
+    );
+
+    if (!valid.valid) {
+        state.canvas = previousCanvas;
+        return;
+    }
+
+    state.placements = result.placements;
     renderCollage();
     updateInfo();
 }
