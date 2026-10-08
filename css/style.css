@@ -1482,3 +1482,156 @@ body {
         height: auto;
     }
 }
+
+
+/* =========================================================
+   RESPONSIVE CANVAS - FIT AVAILABLE WORKSPACE
+   Keep canvas aspect ratio and never alter output dimensions.
+========================================================= */
+
+.canvas-workspace {
+    box-sizing: border-box;
+    min-width: 0;
+    min-height: 0;
+    width: 100%;
+    max-width: 100%;
+    overscroll-behavior: contain;
+}
+
+.canvas-wrapper {
+    flex: 0 0 auto;
+    max-width: none;
+    max-height: none;
+}
+
+#collageCanvas {
+    flex: 0 0 auto;
+    max-width: none;
+    max-height: none;
+}
+
+@media (max-width: 1100px) {
+    .app-container {
+        grid-template-columns: minmax(300px, 34vw) minmax(0, 1fr);
+    }
+
+    .sidebar {
+        width: auto;
+    }
+
+    .workspace {
+        width: auto;
+    }
+
+    .canvas-workspace {
+        padding: 24px;
+    }
+}
+
+@media (max-width: 900px) {
+    .app-header {
+        height: 78px;
+    }
+
+    .app-container {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: auto;
+        min-height: calc(100vh - 78px);
+    }
+
+    .sidebar {
+        width: 100%;
+        height: auto;
+        max-height: none;
+        position: static;
+        overflow: visible;
+    }
+
+    .workspace {
+        width: 100%;
+        height: min(760px, calc(100vh - 78px));
+        min-height: 520px;
+        flex: 1 1 auto;
+    }
+
+    .canvas-workspace {
+        position: absolute;
+        inset: 112px 0 0;
+        width: 100%;
+        height: auto;
+        min-height: 0;
+        padding: 20px;
+        overflow: auto;
+        align-items: flex-start;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 600px) {
+    .app-header {
+        height: auto;
+        min-height: 68px;
+    }
+
+    .header-inner {
+        min-width: 0;
+        gap: 10px;
+        padding: 10px 12px;
+    }
+
+    .brand {
+        min-width: 0;
+    }
+
+    .brand h1,
+    .brand p {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .header-status {
+        min-width: 0;
+    }
+
+    .app-container {
+        min-height: 0;
+    }
+
+    .workspace {
+        min-height: 460px;
+        height: calc(100vh - 68px);
+    }
+
+    .workspace-toolbar {
+        min-height: 104px;
+        height: 104px;
+        flex-basis: 104px;
+        padding: 12px 14px;
+    }
+
+    .canvas-workspace {
+        inset: 104px 0 0;
+        padding: 14px;
+    }
+
+    .canvas-wrapper {
+        max-width: calc(100% - 28px);
+    }
+}
+
+@media (max-width: 420px) {
+    .canvas-workspace {
+        padding: 10px;
+    }
+
+    .canvas-wrapper {
+        max-width: calc(100% - 20px);
+    }
+
+    .toolbar-actions {
+        right: 8px;
+    }
+}
