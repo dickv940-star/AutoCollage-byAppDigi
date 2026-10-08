@@ -54,7 +54,7 @@ const canvasSizeInfo = $("#canvasSizeInfo");
 const resolutionInfo = $("#resolutionInfo");
 const layoutStatus = $("#layoutStatus");
 const fileWarning = $("#fileWarning");
-const cropModal=$("#cropModal"),cropCanvas=$("#cropCanvas"),cropStage=$("#cropStage"),cropSelection=$("#cropSelection"),cropTitle=$("#cropTitle"),cropSubtitle=$("#cropSubtitle"),cropRatioLabel=$("#cropRatioLabel"),cropZoom=$("#cropZoom"),cropResetBtn=$("#cropResetBtn"),cropCloseBtn=$("#cropCloseBtn"),cropCancelBtn=$("#cropCancelBtn"),cropSaveBtn=$("#cropSaveBtn");
+const cropModal=$("#cropModal"),cropCanvas=$("#cropCanvas"),cropStage=$("#cropStage"),cropSelection=$("#cropSelection"),cropTitle=$("#cropTitle"),cropSubtitle=$("#cropSubtitle"),cropRatioLabel=$("#cropRatioLabel"),cropZoom=$("#cropZoom"),cropResetBtn=$("#cropResetBtn"),cropCloseBtn=$("#cropCloseBtn"),cropCancelBtn=$("#cropCancelBtn"),cropSaveBtn=$("#cropSaveBtn"),cropCanvasBtn=$("#cropCanvasBtn"),workspaceGenerateBtn=$("#workspaceGenerateBtn");
 
 function cmToPx(cm, dpi) {
     return Number(cm) * Number(dpi) / 2.54;
@@ -1325,11 +1325,28 @@ if(fileList){
     fileList.addEventListener("click",e=>{
         const b=e.target.closest("[data-crop-id]");
         if(!b)return;
+        e.preventDefault();
+        e.stopPropagation();
         const g=state.groups.get(b.dataset.cropId);
         const item=g?.files.get(b.dataset.cropSize);
         if(item)openCrop(item);
     });
 }
+
+function openFirstCrop(){
+    for(const group of state.groups.values()){
+        for(const item of group.files.values()){
+            if(item?.image){
+                openCrop(item);
+                return;
+            }
+        }
+    }
+    alert("Upload foto terlebih dahulu.");
+}
+
+if(cropCanvasBtn)cropCanvasBtn.addEventListener("click",openFirstCrop);
+if(workspaceGenerateBtn)workspaceGenerateBtn.addEventListener("click",generateCollage);
 /* =========================================================
    EXPORT
 ========================================================= */
