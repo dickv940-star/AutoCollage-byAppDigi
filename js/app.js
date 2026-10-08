@@ -14,7 +14,7 @@ const state = {
     canvas: null,
     zoom: 0.5,
     generated: false,
-    crop: { item:null, aspect:1, sourceRect:null, zoom:1, display:null, dragging:false, resizing:false, resizeHandle:null, startX:0, startY:0, startRect:null }
+    crop: { item:null, aspect:1, sourceRect:null, zoom:1, display:null, dragging:false, resizing:false, resizeHandle:null, startX:0, startY:0, startRect:null, mode:"modal", canvasSelection:null, canvasResizing:false, canvasDragging:false }
 };
 
 const $ = s => document.querySelector(s);
@@ -36,6 +36,9 @@ const resetBtn = $("#resetBtn");
 
 const previewCanvas = $("#collageCanvas");
 const canvasWorkspace = $("#canvasWorkspace");
+const canvasWrapper = $("#canvasWrapper");
+const canvasCropOverlay = $("#canvasCropOverlay");
+const canvasCropSelection = $("#canvasCropSelection");
 
 const zoomValue = $("#zoomValue");
 const zoomOutBtn = $("#zoomOutBtn");
@@ -662,22 +665,26 @@ function renderPreview() {
     if (!previewCanvas || !state.canvas) return;
 
     const source = state.canvas.canvas;
-    const scale = state.zoom;
+    const scale = Math.min(1.5, Math.max(0.15, Number(state.zoom) || 0.5));
 
-    previewCanvas.width = Math.max(1, Math.round(source.width * scale));
-    previewCanvas.height = Math.max(1, Math.round(source.height * scale));
+    // Jangan mengubah ukuran bitmap preview saat zoom.
+    // Bitmap tetap mengikuti resolusi output sehingga preview tidak
+    // terus membuat canvas baru yang besar dan tidak menjadi blur.
+    if (
+        previewCanvas.width !== source.width ||
+        previewCanvas.height !== source.height
+    ) {
+        previewCanvas.width = source.width;
+        previewCanvas.height = source.height;
+    }
 
-    const ctx = previewCanvas.getContext("2d");
-    ctx.drawImage(
-        source,
-        0,
-        0,
-        previewCanvas.width,
-        previewCanvas.height
-    );
+    const ctx = previewCanvas.getContext("2d", { alpha: false });
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+    ctx.drawImage(source, 0, 0);
 
-    previewCanvas.style.width = previewCanvas.width + "px";
-    previewCanvas.style.height = previewCanvas.height + "px";
+    previewCanvas.style.width = Math.max(1, Math.round(source.width * scale)) + "px";
+    previewCanvas.style.height = Math.max(1, Math.round(source.height * scale)) + "px";
 }
 
 /* =========================================================
@@ -938,8 +945,23 @@ function cropClampImage(){
 function openCrop(item){
     if(!item?.image)return;
 
+    if(state.generated){
+        const placement=state.placements.find(p=>p.source===item);
+        if(placement){
+            showCanvasCrop(placement);
+            return;
+        }
+    }
+
+    if(!cropModal || !cropStage)return;
+
+    // Pastikan nilai ukuran valid sebelum modal dibuka.
+    const w=Number(item.width);
+    const h=Number(item.height);
+    if(!(w>0) || !(h>0)) return;
+
     state.crop.item=item;
-    state.crop.aspect=item.width/item.height;
+    state.crop.aspect=w/h;
 
     const saved=item.crop?.canvas;
     state.crop.zoom=Number(saved?.zoom)||1;
@@ -1113,6 +1135,220 @@ function cropToggleOrientation(){
     cropRender();
 }
 
+
+/* =========================================================
+   DIRECT CROP ON MAIN CANVAS
+   Canvas size always follows the LEFT PANEL dimensions.
+========================================================= */
+
+function getPreviewScale(){
+    if(!state.canvas || !previewCanvas) return 1;
+    return previewCanvas.clientWidth / Math.max(1,state.canvas.widthPx);
+}
+
+function placementToCanvasRect(item){
+    const scale=getPreviewScale();
+    return {
+        x:item.x * state.canvas.dpi / 2.54 * scale,
+        y:item.y * state.canvas.dpi / 2.54 * scale,
+        width:item.width * state.canvas.dpi / 2.54 * scale,
+        height:item.height * state.canvas.dpi / 2.54 * scale
+    };
+}
+
+function showCanvasCrop(item){
+    if(!state.generated || !state.canvas || !item?.source?.image || !canvasCropOverlay || !canvasCropSelection) return;
+
+    state.crop.item=item.source;
+    state.crop.mode="canvas";
+    state.crop.aspect=item.width/item.height;
+    state.crop.zoom=Number(item.source.crop?.canvas?.zoom)||1;
+
+    const r=placementToCanvasRect(item);
+    const saved=item.source.crop?.canvas;
+
+    // Selection mengikuti ukuran foto yang sudah ditempatkan.
+    // Ukuran lembar utama tidak pernah diubah.
+    let w=r.width, h=r.height;
+    let x=r.x, y=r.y;
+
+    if(saved){
+        const savedZoom=Math.max(1,Number(saved.zoom)||1);
+        const savedCx=Math.max(0,Math.min(1,Number(saved.centerX) || 0.5));
+        const savedCy=Math.max(0,Math.min(1,Number(saved.centerY) || 0.5));
+
+        w=r.width/savedZoom;
+        h=r.height/savedZoom;
+        x=r.x+r.width*savedCx-w/2;
+        y=r.y+r.height*savedCy-h/2;
+
+        // Clamp agar crop box tetap berada di dalam foto.
+        x=Math.max(r.x,Math.min(r.x+r.width-w,x));
+        y=Math.max(r.y,Math.min(r.y+r.height-h,y));
+    }
+
+    state.crop.canvasSelection={x,y,width:w,height:h,photoRect:{...r}};
+    canvasCropOverlay.classList.remove("hidden");
+    renderCanvasCropOverlay();
+
+    // Fokuskan crop tanpa membuka modal.
+    try{canvasCropOverlay.scrollIntoView({block:"nearest",inline:"nearest"})}catch{}
+}
+
+function hideCanvasCrop(){
+    if(canvasCropOverlay) canvasCropOverlay.classList.add("hidden");
+    state.crop.mode="modal";
+    state.crop.canvasSelection=null;
+    state.crop.item=null;
+    state.crop.canvasDragging=false;
+    state.crop.canvasResizing=false;
+}
+
+function renderCanvasCropOverlay(){
+    if(!canvasCropOverlay || !canvasCropSelection || !state.crop.canvasSelection) return;
+
+    const s=state.crop.canvasSelection;
+    canvasCropSelection.style.left=s.x+"px";
+    canvasCropSelection.style.top=s.y+"px";
+    canvasCropSelection.style.width=s.width+"px";
+    canvasCropSelection.style.height=s.height+"px";
+
+    canvasCropOverlay.style.width=previewCanvas.clientWidth+"px";
+    canvasCropOverlay.style.height=previewCanvas.clientHeight+"px";
+}
+
+function canvasCropPos(e){
+    const r=canvasCropOverlay.getBoundingClientRect();
+    return {x:e.clientX-r.left,y:e.clientY-r.top};
+}
+
+function beginCanvasCropResize(e,handle){
+    if(!state.crop.canvasSelection)return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const p=canvasCropPos(e);
+    state.crop.canvasResizing=true;
+    state.crop.resizeHandle=handle;
+    state.crop.startX=p.x;
+    state.crop.startY=p.y;
+    state.crop.startSelection={...state.crop.canvasSelection};
+
+    try{canvasCropOverlay.setPointerCapture(e.pointerId)}catch{}
+}
+
+function moveCanvasCropResize(e){
+    if(!state.crop.canvasResizing || !state.crop.canvasSelection)return;
+    e.preventDefault();
+
+    const p=canvasCropPos(e);
+    const s=state.crop.startSelection;
+    const dx=p.x-state.crop.startX;
+    const dy=p.y-state.crop.startY;
+    const h=state.crop.resizeHandle;
+    const ratio=state.crop.aspect;
+
+    let x=s.x,y=s.y,w=s.width,hh=s.height;
+
+    if(h.includes("e")) w=s.width+dx;
+    if(h.includes("w")) { w=s.width-dx; x=s.x+dx; }
+    if(h.includes("s")) hh=s.height+dy;
+    if(h.includes("n")) { hh=s.height-dy; y=s.y+dy; }
+
+    // Photoshop-like fixed aspect ratio.
+    if(Math.abs(dx)>=Math.abs(dy)) hh=w/ratio;
+    else { w=hh*ratio; }
+
+    if(h.includes("w")) x=s.x+s.width-w;
+    if(h.includes("n")) y=s.y+s.height-hh;
+
+    const min=24;
+    if(w<min){w=min;hh=w/ratio;if(h.includes("w"))x=s.x+s.width-w;if(h.includes("n"))y=s.y+s.height-hh}
+    if(hh<min){hh=min;w=hh*ratio;if(h.includes("w"))x=s.x+s.width-w;if(h.includes("n"))y=s.y+s.height-hh}
+
+    // Keep crop box inside the selected photo frame.
+    const pr=s.photoRect;
+    if(x<pr.x){x=pr.x;w=s.x+s.width-pr.x;hh=w/ratio}
+    if(y<pr.y){y=pr.y;hh=s.y+s.height-pr.y;w=hh*ratio}
+    if(x+w>pr.x+pr.width){w=pr.x+pr.width-x;hh=w/ratio}
+    if(y+hh>pr.y+pr.height){hh=pr.y+pr.height-y;w=hh*ratio}
+
+    state.crop.canvasSelection={...s,x,y,width:w,height:hh};
+    renderCanvasCropOverlay();
+}
+
+function beginCanvasCropDrag(e){
+    if(!state.crop.canvasSelection)return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const p=canvasCropPos(e);
+    state.crop.canvasDragging=true;
+    state.crop.startX=p.x;
+    state.crop.startY=p.y;
+    state.crop.startSelection={...state.crop.canvasSelection};
+
+    try{canvasCropOverlay.setPointerCapture(e.pointerId)}catch{}
+}
+
+function moveCanvasCropDrag(e){
+    if(!state.crop.canvasDragging || !state.crop.canvasSelection)return;
+    e.preventDefault();
+
+    const p=canvasCropPos(e);
+    const s=state.crop.startSelection;
+    const dx=p.x-state.crop.startX;
+    const dy=p.y-state.crop.startY;
+    const pr=s.photoRect;
+
+    state.crop.canvasSelection={
+        ...s,
+        x:Math.max(pr.x,Math.min(pr.x+pr.width-s.width,s.x+dx)),
+        y:Math.max(pr.y,Math.min(pr.y+pr.height-s.height,s.y+dy))
+    };
+
+    renderCanvasCropOverlay();
+}
+
+function endCanvasCropPointer(e){
+    state.crop.canvasDragging=false;
+    state.crop.canvasResizing=false;
+    state.crop.resizeHandle=null;
+    try{canvasCropOverlay.releasePointerCapture(e.pointerId)}catch{}
+}
+
+function applyCanvasCrop(){
+    if(state.crop.mode!=="canvas" || !state.crop.item || !state.crop.canvasSelection) return;
+
+    const item=state.crop.item;
+    const s=state.crop.canvasSelection;
+    const pr=s.photoRect;
+
+    // Frame output tetap ukuran filename / placement.
+    // Besar crop box menentukan zoom; posisi tengah menentukan fokus.
+    const relCx=((s.x+s.width/2)-pr.x)/pr.width;
+    const relCy=((s.y+s.height/2)-pr.y)/pr.height;
+    const zoom=Math.max(
+        1,
+        pr.width/Math.max(1,s.width),
+        pr.height/Math.max(1,s.height)
+    );
+
+    item.crop={
+        canvas:{
+            width:item.width,
+            height:item.height,
+            zoom,
+            centerX:Math.max(0,Math.min(1,relCx)),
+            centerY:Math.max(0,Math.min(1,relCy))
+        }
+    };
+
+    hideCanvasCrop();
+    renderPairs();
+    renderCollage();
+}
+
 function saveCrop(){
     if(!state.crop.item||!cropHasSelection)return;
 
@@ -1143,6 +1379,27 @@ function saveCrop(){
     renderPairs();
 
     if(state.generated)renderCollage();
+}
+
+if(canvasCropOverlay){
+    canvasCropOverlay.addEventListener("pointerdown",e=>{
+        const handle=e.target.closest(".canvas-crop-handle");
+        if(handle){
+            const cls=[...handle.classList].find(x=>x.startsWith("canvas-crop-handle-"));
+            if(cls) beginCanvasCropResize(e,cls.replace("canvas-crop-handle-",""));
+            return;
+        }
+        if(e.target.closest("#canvasCropSelection")) beginCanvasCropDrag(e);
+    });
+
+    canvasCropOverlay.addEventListener("pointermove",e=>{
+        if(state.crop.canvasResizing) moveCanvasCropResize(e);
+        else if(state.crop.canvasDragging) moveCanvasCropDrag(e);
+    });
+
+    canvasCropOverlay.addEventListener("pointerup",endCanvasCropPointer);
+    canvasCropOverlay.addEventListener("pointercancel",endCanvasCropPointer);
+    canvasCropOverlay.addEventListener("lostpointercapture",endCanvasCropPointer);
 }
 
 if(cropStage){
@@ -1196,11 +1453,29 @@ if(cropResetBtn){
 }
 
 if(cropOrientationBtn)cropOrientationBtn.addEventListener("click",cropToggleOrientation);
-if(cropCloseBtn)cropCloseBtn.addEventListener("click",closeCrop);
-if(cropCancelBtn)cropCancelBtn.addEventListener("click",closeCrop);
-if(cropSaveBtn)cropSaveBtn.addEventListener("click",saveCrop);
+if(cropCloseBtn)cropCloseBtn.addEventListener("click",e=>{
+    e.preventDefault();
+    e.stopPropagation();
+    closeCrop();
+});
+if(cropCancelBtn)cropCancelBtn.addEventListener("click",e=>{
+    e.preventDefault();
+    e.stopPropagation();
+    closeCrop();
+});
+if(cropSaveBtn)cropSaveBtn.addEventListener("click",e=>{
+    e.preventDefault();
+    e.stopPropagation();
+    saveCrop();
+});
 
 document.addEventListener("keydown",e=>{
+    if(state.crop.mode==="canvas"){
+        if(e.key==="Escape"){e.preventDefault();hideCanvasCrop();return}
+        if(e.key==="Enter"){e.preventDefault();applyCanvasCrop();return}
+        return;
+    }
+
     if(cropModal?.classList.contains("hidden"))return;
     if(e.key==="Escape"){closeCrop();return}
     if(e.key==="Enter"){e.preventDefault();saveCrop()}
@@ -1208,11 +1483,20 @@ document.addEventListener("keydown",e=>{
 
 if(fileList){
     fileList.addEventListener("click",e=>{
-        const b=e.target.closest("[data-crop-id]");
+        const b=e.target.closest(".crop-button[data-crop-id]");
         if(!b)return;
-        const g=state.groups.get(b.dataset.cropId);
-        const item=g?.files.get(b.dataset.cropSize);
-        if(item)openCrop(item);
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        const id=String(b.dataset.cropId || "");
+        const sizeKey=String(b.dataset.cropSize || "");
+        const g=state.groups.get(id);
+        const item=g?.files.get(sizeKey);
+
+        if(item?.image){
+            openCrop(item);
+        }
     });
 }
 /* =========================================================
@@ -1339,6 +1623,18 @@ function setZoom(value) {
     }
 
     renderPreview();
+    if(state.crop.mode==="canvas" && state.crop.item){
+        const placement=state.placements.find(p=>p.source===state.crop.item);
+        if(placement){
+            const old=state.crop.canvasSelection;
+            showCanvasCrop(placement);
+            if(old && state.crop.canvasSelection){
+                state.crop.canvasSelection.x=old.x*(previewCanvas.clientWidth/Math.max(1,previewCanvas.width));
+                state.crop.canvasSelection.y=old.y*(previewCanvas.clientHeight/Math.max(1,previewCanvas.height));
+                renderCanvasCropOverlay();
+            }
+        }
+    }
 }
 
 if (zoomOutBtn) {
