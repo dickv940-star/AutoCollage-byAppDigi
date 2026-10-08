@@ -607,11 +607,19 @@
 <div class="crop-modal hidden" id="cropModal">
   <div class="crop-dialog">
     <div class="crop-header">
-      <div><strong id="cropTitle">Crop Foto</strong><small id="cropSubtitle">Atur area foto yang ingin dicetak</small></div>
+      <div><strong id="cropTitle">Buat / Atur Frame Foto</strong><small id="cropSubtitle">Frame kosong — foto dapat dimasukkan setelahnya.</small></div>
       <button class="crop-close" id="cropCloseBtn" type="button">×</button>
     </div>
     <div class="crop-toolbar">
       <span id="cropRatioLabel">Rasio: -</span>
+      <label class="crop-frame-size">Lebar
+        <input type="number" id="frameWidth" min="0.1" step="0.1" value="2">
+        <span>cm</span>
+      </label>
+      <label class="crop-frame-size">Tinggi
+        <input type="number" id="frameHeight" min="0.1" step="0.1" value="3">
+        <span>cm</span>
+      </label>
       <button type="button" class="crop-tool-btn" id="cropOrientationBtn">Portrait / Landscape</button><button type="button" class="crop-tool-btn" id="cropResetBtn">Reset</button>
       <label class="crop-zoom">Zoom <input type="range" id="cropZoom" min="1" max="3" step="0.01" value="1"></label>
     </div>
@@ -624,7 +632,7 @@
       </div>
     </div>
     <div class="crop-footer">
-      <span id="cropHint">Drag di dalam kotak untuk memindahkan canvas. Drag foto di luar kotak untuk memindahkan foto. Tarik handle untuk mengubah ukuran.</span>
+      <span id="cropHint">Frame bisa dipindahkan dan diubah ukurannya. Jika foto sudah ada, foto dapat digeser/zoom di dalam frame tanpa mengubah foto asli.</span>
       <div class="crop-actions">
         <button class="btn btn-secondary crop-cancel" id="cropCancelBtn" type="button">Batal</button>
         <button class="btn btn-primary crop-save" id="cropSaveBtn" type="button">Terapkan Crop</button>
