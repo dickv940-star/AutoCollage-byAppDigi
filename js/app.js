@@ -1073,44 +1073,72 @@ function cropStartResize(e,handle){
 }
 
 function cropMoveResize(e){
-    if(!state.crop.resizing)return;
+    if(!state.crop.resizing||!state.crop.selectionStage)return;
     e.preventDefault();
+    e.stopPropagation();
 
     const p=cropPos(e);
-    const d=state.crop.display;
     const s=state.crop.startSelection;
+    const ratio=Math.max(.05,state.crop.aspect||1);
+    const h=state.crop.resizeHandle||"se";
     const dx=p.x-state.crop.startX;
     const dy=p.y-state.crop.startY;
-    const h=state.crop.resizeHandle;
-    const ratio=state.crop.aspect;
 
-    let x=s.x,y=s.y,w=s.width,hh=s.height;
+    // Photoshop-like frame resizing:
+    // the photo is untouched; only the canvas/frame changes.
+    let x=s.x, y=s.y, w=s.width, hh=s.height;
 
-    if(h.includes("e"))w=s.width+dx;
-    if(h.includes("w")){w=s.width-dx;x=s.x+dx}
-    if(h.includes("s"))hh=s.height+dy;
-    if(h.includes("n")){hh=s.height-dy;y=s.y+dy}
+    const horizontal=h.includes("e")||h.includes("w");
+    const vertical=h.includes("n")||h.includes("s");
 
-    if(Math.abs(dx)>=Math.abs(dy)){
-        hh=w/ratio;
+    let delta;
+    if(horizontal && vertical){
+        const sx=h.includes("w")?-1:1;
+        const sy=h.includes("n")?-1:1;
+        delta=Math.abs(dx)>Math.abs(dy) ? dx*sx : dy*sy;
+    }else if(horizontal){
+        delta=dx*(h.includes("w")?-1:1);
     }else{
-        w=hh*ratio;
+        delta=dy*(h.includes("n")?-1:1);
     }
 
-    if(h.includes("w"))x=s.x+s.width-w;
-    if(h.includes("n"))y=s.y+s.height-hh;
+    const minSize=40;
+    const maxW=cropStage.clientWidth*.96;
+    const maxH=cropStage.clientHeight*.96;
 
-    const min=35;
-    if(w<min){w=min;hh=w/ratio;if(h.includes("w"))x=s.x+s.width-w;if(h.includes("n"))y=s.y+s.height-hh}
-    if(hh<min){hh=min;w=hh*ratio;if(h.includes("w"))x=s.x+s.width-w;if(h.includes("n"))y=s.y+s.height-hh}
+    let newW;
+    let newH;
 
-    const sw=cropStage.clientWidth,sh=cropStage.clientHeight;
-    if(x<0){x=0;w=s.x+s.width}
-    if(y<0){y=0;hh=s.y+s.height}
-    if(x+w>sw){w=sw-x;hh=w/ratio}
-    if(y+hh>sh){hh=sh-y;w=hh*ratio}
+    if(horizontal){
+        newW=Math.max(minSize,Math.min(maxW,s.width+delta));
+        newH=newW/ratio;
+    }else{
+        newH=Math.max(minSize,Math.min(maxH,s.height+delta));
+        newW=newH*ratio;
+    }
 
-    state.crop.selectionStage={x,y,width:w,height:hh};
+    if(newW>maxW){newW=maxW;newH=newW/ratio}
+    if(newH>maxH){newH=maxH;newW=newH*ratio}
+
+    if(h.includes("w"))x=s.x+s.width-newW;
+    if(h.includes("n"))y=s.y+s.height-newH;
+
+    const sw=cropStage.clientWidth;
+    const sh=cropStage.clientHeight;
+
+    if(x<0){x=0;newW=s.x+s.width;newH=newW/ratio}
+    if(y<0){y=0;newH=s.y+s.height;newW=newH*ratio}
+    if(x+newW>sw){newW=sw-x;newH=newW/ratio}
+    if(y+newH>sh){newH=sh-y;newW=newH*ratio}
+
+    state.crop.selectionStage={
+        x:Math.max(0,x),
+        y:Math.max(0,y),
+        width:Math.max(minSize,newW),
+        height:Math.max(minSize,newH)
+    };
+
+    // Keep the photo covering the new canvas.
     cropClampImage();
     cropSourceRectFromSelection();
     cropRender();
@@ -1190,6 +1218,8 @@ window.addEventListener("resize",()=>{
 });
 
 if(cropStage){
+    // Handle canvas resize directly, so dragging the white handles
+    // always resizes the CANVAS/frame and never crops the source photo.
     cropStage.addEventListener("pointerdown",e=>{
         const handle=e.target.closest(".crop-handle");
         if(handle){
@@ -1208,7 +1238,7 @@ if(cropStage){
     cropStage.addEventListener("pointermove",e=>{
         if(state.crop.resizing)cropMoveResize(e);
         else if(state.crop.movingImage)cropMoveImage(e);
-    });
+    },{passive:false});
 
     cropStage.addEventListener("pointerup",cropEnd);
     cropStage.addEventListener("pointercancel",cropEnd);
