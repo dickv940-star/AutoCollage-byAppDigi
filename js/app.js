@@ -665,7 +665,30 @@ function renderPreview() {
     if (!previewCanvas || !state.canvas) return;
 
     const source = state.canvas.canvas;
-    const scale = Math.min(1.5, Math.max(0.15, Number(state.zoom) || 0.5));
+    const desiredScale = Math.min(1.5, Math.max(0.15, Number(state.zoom) || 0.5));
+
+    // Responsive: pada layar sempit, preview otomatis mengecil agar
+    // seluruh canvas tetap terlihat di area kerja. Ukuran bitmap/output
+    // tetap mengikuti Lebar x Tinggi + DPI dari panel kiri.
+    let scale = desiredScale;
+    if (canvasWorkspace) {
+        const cs = getComputedStyle(canvasWorkspace);
+        const padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+        const padY = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+        const availableW = Math.max(1, canvasWorkspace.clientWidth - padX);
+        const availableH = Math.max(1, canvasWorkspace.clientHeight - padY);
+
+        const fitScale = Math.min(
+            availableW / Math.max(1, source.width),
+            availableH / Math.max(1, source.height)
+        );
+
+        // Jangan mengecilkan canvas pada desktop jika zoom memang lebih besar;
+        // fit hanya membatasi ketika viewport terlalu sempit.
+        if (fitScale > 0 && fitScale < scale) {
+            scale = fitScale;
+        }
+    }
 
     // Jangan mengubah ukuran bitmap preview saat zoom.
     // Bitmap tetap mengikuti resolusi output sehingga preview tidak
