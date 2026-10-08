@@ -662,22 +662,26 @@ function renderPreview() {
     if (!previewCanvas || !state.canvas) return;
 
     const source = state.canvas.canvas;
-    const scale = state.zoom;
+    const scale = Math.min(1.5, Math.max(0.15, Number(state.zoom) || 0.5));
 
-    previewCanvas.width = Math.max(1, Math.round(source.width * scale));
-    previewCanvas.height = Math.max(1, Math.round(source.height * scale));
+    // Jangan mengubah ukuran bitmap preview saat zoom.
+    // Bitmap tetap mengikuti resolusi output sehingga preview tidak
+    // terus membuat canvas baru yang besar dan tidak menjadi blur.
+    if (
+        previewCanvas.width !== source.width ||
+        previewCanvas.height !== source.height
+    ) {
+        previewCanvas.width = source.width;
+        previewCanvas.height = source.height;
+    }
 
-    const ctx = previewCanvas.getContext("2d");
-    ctx.drawImage(
-        source,
-        0,
-        0,
-        previewCanvas.width,
-        previewCanvas.height
-    );
+    const ctx = previewCanvas.getContext("2d", { alpha: false });
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+    ctx.drawImage(source, 0, 0);
 
-    previewCanvas.style.width = previewCanvas.width + "px";
-    previewCanvas.style.height = previewCanvas.height + "px";
+    previewCanvas.style.width = Math.max(1, Math.round(source.width * scale)) + "px";
+    previewCanvas.style.height = Math.max(1, Math.round(source.height * scale)) + "px";
 }
 
 /* =========================================================
@@ -936,10 +940,15 @@ function cropClampImage(){
 }
 
 function openCrop(item){
-    if(!item?.image)return;
+    if(!item?.image || !cropModal || !cropStage)return;
+
+    // Pastikan nilai ukuran valid sebelum modal dibuka.
+    const w=Number(item.width);
+    const h=Number(item.height);
+    if(!(w>0) || !(h>0)) return;
 
     state.crop.item=item;
-    state.crop.aspect=item.width/item.height;
+    state.crop.aspect=w/h;
 
     const saved=item.crop?.canvas;
     state.crop.zoom=Number(saved?.zoom)||1;
@@ -1196,9 +1205,21 @@ if(cropResetBtn){
 }
 
 if(cropOrientationBtn)cropOrientationBtn.addEventListener("click",cropToggleOrientation);
-if(cropCloseBtn)cropCloseBtn.addEventListener("click",closeCrop);
-if(cropCancelBtn)cropCancelBtn.addEventListener("click",closeCrop);
-if(cropSaveBtn)cropSaveBtn.addEventListener("click",saveCrop);
+if(cropCloseBtn)cropCloseBtn.addEventListener("click",e=>{
+    e.preventDefault();
+    e.stopPropagation();
+    closeCrop();
+});
+if(cropCancelBtn)cropCancelBtn.addEventListener("click",e=>{
+    e.preventDefault();
+    e.stopPropagation();
+    closeCrop();
+});
+if(cropSaveBtn)cropSaveBtn.addEventListener("click",e=>{
+    e.preventDefault();
+    e.stopPropagation();
+    saveCrop();
+});
 
 document.addEventListener("keydown",e=>{
     if(cropModal?.classList.contains("hidden"))return;
@@ -1208,11 +1229,20 @@ document.addEventListener("keydown",e=>{
 
 if(fileList){
     fileList.addEventListener("click",e=>{
-        const b=e.target.closest("[data-crop-id]");
+        const b=e.target.closest(".crop-button[data-crop-id]");
         if(!b)return;
-        const g=state.groups.get(b.dataset.cropId);
-        const item=g?.files.get(b.dataset.cropSize);
-        if(item)openCrop(item);
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        const id=String(b.dataset.cropId || "");
+        const sizeKey=String(b.dataset.cropSize || "");
+        const g=state.groups.get(id);
+        const item=g?.files.get(sizeKey);
+
+        if(item?.image){
+            openCrop(item);
+        }
     });
 }
 /* =========================================================
