@@ -1744,11 +1744,8 @@ function applyAppBackground(color) {
 
     document.body.style.backgroundColor = hex;
 
-    const workspace = document.querySelector(".workspace");
-    const canvasArea = document.querySelector(".canvas-workspace");
-
-    if (workspace) workspace.style.backgroundColor = hex;
-    if (canvasArea) canvasArea.style.backgroundColor = hex;
+    // Background picker controls the app surface only.
+    // Keep the navy workspace from the supplied design intact.
 
     if (appBgColor && appBgColor.value !== hex) {
         appBgColor.value = hex;
