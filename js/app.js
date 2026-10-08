@@ -281,7 +281,7 @@ function renderPairs() {
                     <div class="file-row file-present">
                         <span>✓</span>
                         <span>${esc(item.name)}</span>
-                        <button type="button" class="crop-button${item.crop ? " cropped" : ""}" data-crop-id="${esc(item.id)}" data-crop-size="${esc(item.sizeKey)}">${item.crop ? "Crop ✓" : "Crop"}</button>
+                        <button type="button" class="crop-button${item.crop ? " cropped" : ""}" data-crop-id="${esc(item.id)}" data-crop-size="${esc(item.sizeKey)}">Crop</button>
                     </div>
                   `
                 : `
@@ -667,32 +667,28 @@ function renderPreview() {
     const source = state.canvas.canvas;
     const desiredScale = Math.min(1.5, Math.max(0.15, Number(state.zoom) || 0.5));
 
-    // Responsive: pada layar sempit, preview otomatis mengecil agar
-    // seluruh canvas tetap terlihat di area kerja. Ukuran bitmap/output
-    // tetap mengikuti Lebar x Tinggi + DPI dari panel kiri.
+    // Preview selalu dihitung dari ruang yang benar-benar tersedia.
+    // Resolusi bitmap/output TIDAK berubah: hanya ukuran tampilannya.
     let scale = desiredScale;
+
     if (canvasWorkspace) {
         const cs = getComputedStyle(canvasWorkspace);
         const padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
         const padY = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
-        const availableW = Math.max(1, canvasWorkspace.clientWidth - padX);
-        const availableH = Math.max(1, canvasWorkspace.clientHeight - padY);
+
+        const availableW = Math.max(1, canvasWorkspace.clientWidth - padX - 12);
+        const availableH = Math.max(1, canvasWorkspace.clientHeight - padY - 12);
 
         const fitScale = Math.min(
             availableW / Math.max(1, source.width),
             availableH / Math.max(1, source.height)
         );
 
-        // Jangan mengecilkan canvas pada desktop jika zoom memang lebih besar;
-        // fit hanya membatasi ketika viewport terlalu sempit.
-        if (fitScale > 0 && fitScale < scale) {
-            scale = fitScale;
+        if (fitScale > 0) {
+            scale = Math.min(desiredScale, fitScale);
         }
     }
 
-    // Jangan mengubah ukuran bitmap preview saat zoom.
-    // Bitmap tetap mengikuti resolusi output sehingga preview tidak
-    // terus membuat canvas baru yang besar dan tidak menjadi blur.
     if (
         previewCanvas.width !== source.width ||
         previewCanvas.height !== source.height
@@ -708,6 +704,16 @@ function renderPreview() {
 
     previewCanvas.style.width = Math.max(1, Math.round(source.width * scale)) + "px";
     previewCanvas.style.height = Math.max(1, Math.round(source.height * scale)) + "px";
+
+    if (canvasWrapper) {
+        canvasWrapper.style.width = previewCanvas.style.width;
+        canvasWrapper.style.height = previewCanvas.style.height;
+    }
+
+    if (state.crop.mode === "canvas" && state.crop.item) {
+        const placement = state.placements.find(p => p.source === state.crop.item);
+        if (placement) renderCanvasCropOverlay();
+    }
 }
 
 /* =========================================================
@@ -1695,6 +1701,51 @@ window.addEventListener("resize", () => {
 
 
 /* =========================================================
+   RESPONSIVE CANVAS SIZE
+   Lebar/Tinggi panel kiri adalah ukuran output sebenarnya.
+========================================================= */
+
+function refreshCanvasFromInputs() {
+    updateInfo();
+
+    if (!state.generated || !state.canvas) return;
+
+    const next = createCanvasState();
+    const previous = state.canvas;
+
+    state.canvas = next;
+
+    // Re-pack using the new physical canvas size while preserving current
+    // photo selections/crops.
+    const margin = Math.max(0, n(marginInput?.value, 0.5));
+    const gap = Math.max(0, n(gapInput?.value, 0.3));
+    let result = packPhotos(
+        state.placements.map(item => item.source),
+        next.widthCm,
+        next.heightCm,
+        margin,
+        gap
+    );
+
+    // If the helper cannot rebuild from the current placement list, keep the
+    // existing placement model and only refresh the preview bitmap.
+    if (result && result.success && Array.isArray(result.placements)) {
+        state.placements = result.placements;
+    } else {
+        state.canvas = previous;
+        return;
+    }
+
+    if (autoSpacing?.checked) {
+        const spaced = applyAutoSpacing(state.placements, next.widthCm, margin);
+        if (spaced?.placements) state.placements = spaced.placements;
+    }
+
+    renderCollage();
+    updateInfo();
+}
+
+/* =========================================================
    EVENTS
 ========================================================= */
 
@@ -1741,7 +1792,21 @@ if (resetBtn) {
     canvasHeight,
     dpiInput
 ].forEach(input => {
-    if (input) input.addEventListener("input", updateInfo);
+    if (input) {
+        input.addEventListener("input", () => {
+            updateInfo();
+            // Output size changes are applied immediately only after a collage
+            // exists; before that the next Generate uses the entered dimensions.
+            if (state.generated) {
+                try {
+                    refreshCanvasFromInputs();
+                } catch (err) {
+                    console.warn("Canvas resize:", err);
+                    updateInfo();
+                }
+            }
+        });
+    }
 });
 
 if (exportPngBtn) {
