@@ -632,19 +632,33 @@ function drawPhoto(ctx,item,x,y,w,h){
     if(c && c.canvas){
         const iw=img.naturalWidth;
         const ih=img.naturalHeight;
+        const r=c.canvas.sourceRect;
 
-        // CROP CANVAS:
-        // foto asli tidak dipotong/diedit. Kita hanya membuat
-        // frame/canvas tempat foto ditempatkan lalu melakukan
-        // clipping pada area tujuan.
+        // NON-DESTRUCTIVE CANVAS CROP:
+        // Foto asli tidak pernah diubah. Canvas/frame hanya
+        // menentukan bagian foto mana yang terlihat di slot.
+        if(r && r.width>0 && r.height>0){
+            const sx=Math.max(0,Math.min(iw-1,n(r.x)*iw));
+            const sy=Math.max(0,Math.min(ih-1,n(r.y)*ih));
+            const sw=Math.max(1,Math.min(iw-sx,n(r.width)*iw));
+            const sh=Math.max(1,Math.min(ih-sy,n(r.height)*ih));
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(x,y,w,h);
+            ctx.clip();
+            ctx.drawImage(img,sx,sy,sw,sh,x,y,w,h);
+            ctx.restore();
+            return;
+        }
+
+        // Backward compatibility untuk template crop lama.
         const cover=Math.max(w/iw,h/ih);
         const scale=cover*(Number(c.zoom)||1);
         const dw=iw*scale;
         const dh=ih*scale;
-
         const cx=Math.max(0,Math.min(1,Number(c.centerX)||0.5));
         const cy=Math.max(0,Math.min(1,Number(c.centerY)||0.5));
-
         const dx=x+w/2-(cx*dw);
         const dy=y+h/2-(cy*dh);
 
@@ -1235,19 +1249,27 @@ function cropSourceRectFromSelection(){
 
     const d=state.crop.display||cropDisplay();
     const sel=state.crop.selectionStage;
+    const i=state.crop.item.image;
 
+    // Frame/canvas diterjemahkan ke koordinat foto hanya untuk
+    // menentukan area yang ditampilkan. File foto asli tetap utuh.
     let x=(sel.x-d.left)/d.scale-(state.crop.imageOffsetX||0);
     let y=(sel.y-d.top)/d.scale-(state.crop.imageOffsetY||0);
     let w=sel.width/d.scale;
     let h=sel.height/d.scale;
 
-    const i=state.crop.item.image;
+    w=Math.min(i.naturalWidth,w);
+    h=Math.min(i.naturalHeight,h);
     x=Math.max(0,Math.min(x,i.naturalWidth-w));
     y=Math.max(0,Math.min(y,i.naturalHeight-h));
 
-    state.crop.sourceRect={x,y,width:w,height:h};
+    state.crop.sourceRect={
+        x:x/i.naturalWidth,
+        y:y/i.naturalHeight,
+        width:w/i.naturalWidth,
+        height:h/i.naturalHeight
+    };
 }
-
 function openCrop(item){
     if(!item?.image)return;
 
@@ -1270,9 +1292,24 @@ function openCrop(item){
         cropInitSelection();
 
         const saved=item.crop?.canvas;
-        if(saved?.centerX!==undefined&&saved?.centerY!==undefined){
-            const d=cropDisplay();
-            const sel=state.crop.selectionStage;
+        const d=cropDisplay();
+        const sel=state.crop.selectionStage;
+
+        if(saved?.sourceRect?.width>0&&saved?.sourceRect?.height>0){
+            // Pulihkan posisi foto berdasarkan frame/canvas yang tersimpan.
+            const sr=saved.sourceRect;
+            const targetX=n(sr.x)*item.image.naturalWidth;
+            const targetY=n(sr.y)*item.image.naturalHeight;
+            const targetW=n(sr.width)*item.image.naturalWidth;
+            const targetH=n(sr.height)*item.image.naturalHeight;
+            const targetCx=targetX+targetW/2;
+            const targetCy=targetY+targetH/2;
+
+            state.crop.imageOffsetX=
+                ((sel.x+sel.width/2)-d.left)/d.scale-targetCx;
+            state.crop.imageOffsetY=
+                ((sel.y+sel.height/2)-d.top)/d.scale-targetCy;
+        }else if(saved?.centerX!==undefined&&saved?.centerY!==undefined){
             const targetCx=Number(saved.centerX)*item.image.naturalWidth;
             const targetCy=Number(saved.centerY)*item.image.naturalHeight;
 
@@ -1520,13 +1557,13 @@ function saveCrop(){
     if(!state.crop.item||!cropHasSelection)return;
 
     const item=state.crop.item;
-    const d=state.crop.display||cropDisplay();
-    const sel=state.crop.selectionStage;
-    const imageLeft=d.left+(state.crop.imageOffsetX||0)*d.scale;
-    const imageTop=d.top+(state.crop.imageOffsetY||0)*d.scale;
+    cropSourceRectFromSelection();
 
-    const centerX=((sel.x+sel.width/2)-imageLeft)/d.scale;
-    const centerY=((sel.y+sel.height/2)-imageTop)/d.scale;
+    const sr=state.crop.sourceRect;
+    if(!sr){
+        alert("Area canvas belum valid.");
+        return;
+    }
 
     item.crop={
         canvas:{
@@ -1534,9 +1571,26 @@ function saveCrop(){
             height:item.height,
             ratio:state.crop.aspect,
             zoom:Math.max(1,Number(state.crop.zoom)||1),
-            centerX:Math.max(0,Math.min(1,centerX/item.image.naturalWidth)),
-            centerY:Math.max(0,Math.min(1,centerY/item.image.naturalHeight)),
-            frameRatio:sel.width/Math.max(1,sel.height)
+
+            // Area ini adalah koordinat CANVAS/FRAME terhadap foto,
+            // bukan file foto yang dipotong atau diubah.
+            sourceRect:{
+                x:Math.max(0,Math.min(1,n(sr.x))),
+                y:Math.max(0,Math.min(1,n(sr.y))),
+                width:Math.max(.0001,Math.min(1,n(sr.width))),
+                height:Math.max(.0001,Math.min(1,n(sr.height)))
+            },
+
+            // Tetap simpan data lama agar crop versi sebelumnya
+            // masih dapat dibuka.
+            centerX:Math.max(0,Math.min(1,
+                n(sr.x)+n(sr.width)/2
+            )),
+            centerY:Math.max(0,Math.min(1,
+                n(sr.y)+n(sr.height)/2
+            )),
+            frameRatio:state.crop.selectionStage.width/
+                Math.max(1,state.crop.selectionStage.height)
         }
     };
 
@@ -1545,7 +1599,6 @@ function saveCrop(){
 
     if(state.generated)renderCollage();
 }
-
 let cropResizeTimer=null;
 window.addEventListener("resize",()=>{
     if(!state.crop?.item||cropModal?.classList.contains("hidden"))return;
