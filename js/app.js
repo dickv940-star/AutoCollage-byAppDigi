@@ -875,6 +875,41 @@ function cropRender(){
     }
 }
 
+function cropFitSelectionToStage(){
+    if(!state.crop.item||!cropStage||!state.crop.selectionStage)return;
+
+    const d=cropDisplay();
+    const ratio=state.crop.aspect||1;
+    const sw=cropStage.clientWidth;
+    const sh=cropStage.clientHeight;
+    if(sw<10||sh<10)return;
+
+    const old=state.crop.selectionStage;
+    const cx=(old.x+old.width/2)/Math.max(1,state.crop.lastStageWidth||sw);
+    const cy=(old.y+old.height/2)/Math.max(1,state.crop.lastStageHeight||sh);
+
+    const maxW=Math.min(sw*.88,sh*.88*ratio,d.width*.88);
+    const maxH=Math.min(sh*.88,sw*.88/ratio,d.height*.88);
+    let w=Math.min(maxW,maxH*ratio);
+    let h=w/ratio;
+
+    if(w<36||h<36){
+        h=Math.min(sh*.88,Math.max(36,w/ratio));
+        w=h*ratio;
+    }
+
+    const x=Math.max(0,Math.min(sw-w,cx*sw-w/2));
+    const y=Math.max(0,Math.min(sh-h,cy*sh-h/2));
+
+    state.crop.selectionStage={x,y,width:w,height:h};
+    state.crop.lastStageWidth=sw;
+    state.crop.lastStageHeight=sh;
+
+    cropClampImage();
+    cropSourceRectFromSelection();
+    cropRender();
+}
+
 function cropInitSelection(){
     const d=cropDisplay();
     const ratio=state.crop.aspect;
@@ -889,6 +924,8 @@ function cropInitSelection(){
         height:h
     };
 
+    state.crop.lastStageWidth=cropStage.clientWidth;
+    state.crop.lastStageHeight=cropStage.clientHeight;
     cropHasSelection=true;
 }
 
@@ -1144,6 +1181,13 @@ function saveCrop(){
 
     if(state.generated)renderCollage();
 }
+
+let cropResizeTimer=null;
+window.addEventListener("resize",()=>{
+    if(!state.crop?.item||cropModal?.classList.contains("hidden"))return;
+    clearTimeout(cropResizeTimer);
+    cropResizeTimer=setTimeout(()=>cropFitSelectionToStage(),30);
+});
 
 if(cropStage){
     cropStage.addEventListener("pointerdown",e=>{
