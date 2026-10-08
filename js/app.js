@@ -87,6 +87,8 @@ const createCanvasBtn = $("#createCanvasBtn");
 const addFrameBtn = $("#addFrameBtn");
 const frameWidthInput = $("#frameWidth");
 const frameHeightInput = $("#frameHeight");
+const frameXInput = $("#frameX");
+const frameYInput = $("#frameY");
 const cropModal=$("#cropModal"),cropCanvas=$("#cropCanvas"),cropStage=$("#cropStage"),cropSelection=$("#cropSelection"),cropTitle=$("#cropTitle"),cropSubtitle=$("#cropSubtitle"),cropRatioLabel=$("#cropRatioLabel"),cropZoom=$("#cropZoom"),cropResetBtn=$("#cropResetBtn"),cropCloseBtn=$("#cropCloseBtn"),cropCancelBtn=$("#cropCancelBtn"),cropSaveBtn=$("#cropSaveBtn"),cropCanvasBtn=$("#cropCanvasBtn"),workspaceGenerateBtn=$("#workspaceGenerateBtn");
 
 function cmToPx(cm, dpi) {
@@ -1405,6 +1407,8 @@ function openCrop(item){
 
         if(frameWidthInput) frameWidthInput.value=n(item.width,2);
         if(frameHeightInput) frameHeightInput.value=n(item.height,3);
+        if(frameXInput) frameXInput.value=n(item.x,1);
+        if(frameYInput) frameYInput.value=n(item.y,1);
 
         cropHasSelection=true;
         cropRender();
@@ -1643,7 +1647,13 @@ function saveCrop(){
     const item=state.crop.item;
     const width=Math.max(.1,n(frameWidthInput?.value,item.width||2));
     const height=Math.max(.1,n(frameHeightInput?.value,item.height||3));
+    const maxX=Math.max(0,n(state.canvas?.widthCm,30)-width);
+    const maxY=Math.max(0,n(state.canvas?.heightCm,40)-height);
+    const posX=Math.max(0,Math.min(maxX,n(frameXInput?.value,item.x||0)));
+    const posY=Math.max(0,Math.min(maxY,n(frameYInput?.value,item.y||0)));
 
+    item.x=posX;
+    item.y=posY;
     item.width=width;
     item.height=height;
     item.widthCm=width;
