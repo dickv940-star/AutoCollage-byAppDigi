@@ -1760,3 +1760,195 @@ button:focus-visible, input:focus-visible, label:focus-within {
     .toolbar-actions .btn { flex-basis: 100%; }
     .canvas-workspace { height: 350px; min-height: 350px; }
 }
+
+
+/* =========================================================
+   RESPONSIVE FIX — toolbar controls and preview canvas
+   Final overrides to prevent crowded buttons and canvas overflow.
+========================================================= */
+.app-container,
+.workspace,
+.workspace-toolbar,
+.toolbar-actions,
+.canvas-workspace,
+.canvas-wrapper {
+    min-width: 0;
+}
+
+.workspace-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.toolbar-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 7px;
+    min-width: 0;
+}
+
+.toolbar-actions .btn {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+    line-height: 1.25;
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+
+.toolbar-actions .icon-btn {
+    flex: 0 0 34px;
+}
+
+.canvas-workspace {
+    box-sizing: border-box;
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+}
+
+.canvas-wrapper {
+    box-sizing: border-box;
+    width: max-content;
+    height: max-content;
+    max-width: 100%;
+    max-height: 100%;
+    flex: 0 1 auto;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#collageCanvas {
+    display: block;
+    flex: 0 1 auto;
+    width: auto !important;
+    height: auto !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    object-fit: contain;
+}
+
+/* Mid-sized screens: keep actions in a tidy, dedicated row. */
+@media (max-width: 1100px) {
+    .workspace-toolbar {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .toolbar-actions {
+        display: flex;
+        width: 100%;
+        justify-content: flex-start;
+        align-items: center;
+        gap: 7px;
+    }
+
+    .canvas-workspace {
+        height: clamp(360px, 62vh, 680px);
+        min-height: 360px;
+        padding: 18px;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .canvas-wrapper {
+        max-width: 100%;
+        max-height: 100%;
+    }
+}
+
+/* Small tablets and phones: buttons become uniform, easy-to-tap controls. */
+@media (max-width: 600px) {
+    .workspace-toolbar {
+        padding: 13px 12px;
+        gap: 11px;
+    }
+
+    .toolbar-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: stretch;
+        justify-content: stretch;
+        gap: 7px;
+    }
+
+    .toolbar-actions .icon-btn {
+        width: 100%;
+        min-width: 0;
+        height: 38px;
+        flex: initial;
+    }
+
+    #zoomValue {
+        min-width: 0;
+        width: 100%;
+        min-height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .toolbar-actions .btn,
+    .toolbar-actions #cropCanvasBtn,
+    .toolbar-actions #workspaceGenerateBtn,
+    .toolbar-actions #saveTemplateBtn,
+    .toolbar-actions #exportPngBtn,
+    .toolbar-actions #exportJpgBtn {
+        grid-column: auto;
+        width: 100%;
+        min-width: 0;
+        min-height: 38px;
+        margin: 0;
+        padding: 8px 7px;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        font-size: 11px;
+    }
+
+    .canvas-workspace {
+        height: clamp(320px, 58vh, 520px);
+        min-height: 320px;
+        padding: 12px;
+        align-items: center;
+        justify-content: center;
+        overflow: auto;
+    }
+
+    .canvas-wrapper {
+        max-width: 100%;
+        max-height: 100%;
+        border-width: 3px;
+    }
+
+    #collageCanvas {
+        max-width: 100% !important;
+        max-height: 100% !important;
+    }
+}
+
+@media (max-width: 380px) {
+    .toolbar-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+    }
+
+    .toolbar-actions .btn,
+    .toolbar-actions #cropCanvasBtn,
+    .toolbar-actions #workspaceGenerateBtn,
+    .toolbar-actions #saveTemplateBtn,
+    .toolbar-actions #exportPngBtn,
+    .toolbar-actions #exportJpgBtn {
+        font-size: 10px;
+        padding: 7px 5px;
+    }
+}
