@@ -2129,3 +2129,51 @@ button:focus-visible, input:focus-visible, label:focus-within {
     #cropModal .crop-actions { width: 100%; }
     #cropModal .crop-actions button { flex: 1; min-width: 0; }
 }
+
+
+/* Make the actual cropable canvas area unmistakable */
+#cropModal .crop-stage {
+    position: relative;
+    isolation: isolate;
+    outline: 1px solid #5a606a;
+}
+#cropModal .crop-stage::before {
+    content: "AREA KERJA • CANVAS";
+    position: absolute;
+    z-index: 0;
+    top: 12px;
+    left: 12px;
+    padding: 6px 9px;
+    border: 1px solid #565d68;
+    border-radius: 4px;
+    background: rgba(25,27,31,.9);
+    color: #e5e9ef;
+    font: 600 10px/1.2 "Segoe UI", Arial, sans-serif;
+    letter-spacing: .08em;
+    pointer-events: none;
+}
+#cropModal .crop-stage::after {
+    content: "Seret foto • Atur frame putih untuk menentukan area potong";
+    position: absolute;
+    z-index: 0;
+    left: 12px;
+    bottom: 12px;
+    max-width: calc(100% - 24px);
+    padding: 6px 9px;
+    border: 1px solid #424852;
+    border-radius: 4px;
+    background: rgba(25,27,31,.88);
+    color: #c7cdd6;
+    font: 11px/1.4 "Segoe UI", Arial, sans-serif;
+    pointer-events: none;
+}
+#cropModal .crop-stage canvas { z-index: 1 !important; }
+#cropModal .crop-selection { z-index: 3 !important; }
+#cropModal .crop-header { box-shadow: 0 1px 0 rgba(255,255,255,.025); }
+#cropModal .crop-footer #cropHint {
+    max-width: 62ch;
+}
+@media (max-width: 760px) {
+    #cropModal .crop-stage::before { top: 7px; left: 7px; }
+    #cropModal .crop-stage::after { left: 7px; bottom: 7px; font-size: 10px; }
+}
