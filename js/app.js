@@ -726,25 +726,24 @@ function renderCollage() {
 }
 
 function renderPreview() {
-    if (!previewCanvas || !state.canvas) return;
+    if (!previewCanvas || !state.canvas?.canvas) return;
 
     const source = state.canvas.canvas;
-    const scale = state.zoom;
+    const scale = Math.min(1.5, Math.max(0.15, n(state.zoom, 0.5)));
+    if (!source.width || !source.height) return;
 
-    previewCanvas.width = Math.max(1, Math.round(source.width * scale));
-    previewCanvas.height = Math.max(1, Math.round(source.height * scale));
+    // Keep the preview backing store at the source canvas resolution.
+    // Zoom changes only its displayed size, not the source pixels.
+    if (previewCanvas.width !== source.width) previewCanvas.width = source.width;
+    if (previewCanvas.height !== source.height) previewCanvas.height = source.height;
 
     const ctx = previewCanvas.getContext("2d");
-    ctx.drawImage(
-        source,
-        0,
-        0,
-        previewCanvas.width,
-        previewCanvas.height
-    );
+    if (!ctx) return;
+    ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+    ctx.drawImage(source, 0, 0);
 
-    previewCanvas.style.width = previewCanvas.width + "px";
-    previewCanvas.style.height = previewCanvas.height + "px";
+    previewCanvas.style.setProperty("width", Math.max(1, Math.round(source.width * scale)) + "px");
+    previewCanvas.style.setProperty("height", Math.max(1, Math.round(source.height * scale)) + "px");
 }
 
 /* =========================================================
