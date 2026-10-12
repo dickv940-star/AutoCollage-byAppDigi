@@ -763,107 +763,107 @@ function loadTemplate() {
 }
 
 function saveTemplate() {
-    if (!state.canvas) {
-        alert("Buat Canvas terlebih dahulu.");
-        return;
-    }
-
-    const sourceFrames = state.generated && state.placements.length
-        ? state.placements
-        : state.frames;
-
-    if (!sourceFrames.length) {
-        alert("Tambahkan minimal satu frame foto.");
-        return;
-    }
-
+    if (!state.canvas) { alert("Buat atau crop canvas terlebih dahulu."); return; }
+    const sourceFrames = state.generated && state.placements.length ? state.placements : state.frames;
+    if (!sourceFrames.length) { alert("Buat minimal satu frame atau jalankan Auto Collage sebelum menyimpan contoh."); return; }
     const template = {
-        version: 2,
-        widthCm: state.canvas.widthCm,
-        heightCm: state.canvas.heightCm,
-        dpi: state.canvas.dpi,
+        version: 3, widthCm: state.canvas.widthCm, heightCm: state.canvas.heightCm, dpi: state.canvas.dpi,
         frames: sourceFrames.map((p, index) => ({
-            index,
-            sizeKey: p.sizeKey || `${p.width}x${p.height}`,
-            x: n(p.x),
-            y: n(p.y),
-            width: n(p.width),
-            height: n(p.height)
+            index, sizeKey: p.sizeKey || p.source?.sizeKey || `${p.width}x${p.height}`,
+            x: n(p.x), y: n(p.y), width: n(p.width), height: n(p.height),
+            crop: p.crop ? JSON.parse(JSON.stringify(p.crop)) : null
         }))
     };
-
     try {
         localStorage.setItem(TEMPLATE_KEY, JSON.stringify(template));
-        state.template = template;
-        updateTemplateButton();
-        alert("Contoh collage berhasil disimpan.");
-    } catch (e) {
-        console.error(e);
-        alert("Gagal menyimpan contoh collage.");
-    }
+        state.template = template; updateTemplateButton(); renderTemplatePreview();
+        alert("Contoh collage berhasil disimpan. Contoh ini digunakan untuk upload berikutnya selama ukuran canvas sesuai.");
+    } catch (e) { console.error(e); alert("Gagal menyimpan contoh. Penyimpanan browser mungkin penuh."); }
 }
 
 function clearTemplate() {
-    try {
-        localStorage.removeItem(TEMPLATE_KEY);
-    } catch {}
-    state.template = null;
-    updateTemplateButton();
+    try { localStorage.removeItem(TEMPLATE_KEY); } catch {}
+    state.template = null; state.templateMissing = []; state.templateOverflow = [];
+    updateTemplateButton(); renderTemplatePreview();
 }
 
 function updateTemplateButton() {
     const btn = document.querySelector("#saveTemplateBtn");
-    if (!btn) return;
-    btn.textContent = state.template
-        ? "Contoh Tersimpan ✓"
-        : "Simpan sebagai Contoh";
+    if (btn) btn.textContent = state.template ? "Contoh Tersimpan ✓" : "Simpan sebagai Contoh";
+}
+
+function renderTemplatePreview() {
+    const panel = document.querySelector("#templatePanel");
+    const canvas = document.querySelector("#templatePreviewCanvas");
+    const meta = document.querySelector("#templatePreviewMeta");
+    if (!panel || !canvas || !meta) return;
+    const t = state.template;
+    panel.classList.toggle("has-template", !!(t && t.frames?.length));
+    if (!t || !t.frames?.length) {
+        meta.textContent = "Belum ada contoh. Atur canvas, lalu klik Simpan sebagai Contoh.";
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+            canvas.width = 180; canvas.height = 220;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#f4f6fb"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = "#cbd2df"; ctx.setLineDash([5,4]); ctx.strokeRect(18,18,144,184); ctx.setLineDash([]);
+            ctx.fillStyle = "#8993a5"; ctx.font = "12px Arial"; ctx.textAlign = "center"; ctx.fillText("Contoh layout",90,112);
+        }
+        return;
+    }
+    const cw = Math.max(1,n(t.widthCm,30)), ch = Math.max(1,n(t.heightCm,40));
+    const scale = Math.min(220/cw,260/ch);
+    canvas.width = Math.max(1,Math.round(cw*scale)); canvas.height = Math.max(1,Math.round(ch*scale));
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle="#fff"; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.strokeStyle="#b9c2d2"; ctx.lineWidth=1; ctx.strokeRect(.5,.5,canvas.width-1,canvas.height-1);
+    t.frames.forEach((p,i)=>{
+        const x=n(p.x)*scale,y=n(p.y)*scale,w=n(p.width)*scale,h=n(p.height)*scale;
+        ctx.fillStyle=i%2?"#dfe5ff":"#e7ebf2"; ctx.fillRect(x,y,w,h);
+        ctx.strokeStyle="#5966b3"; ctx.lineWidth=1; ctx.strokeRect(x+.5,y+.5,Math.max(0,w-1),Math.max(0,h-1));
+    });
+    meta.textContent = `${cw} × ${ch} cm · ${t.frames.length} posisi foto`;
+}
+
+function findFreeTemplateSpot(width,height,occupied,canvasW,canvasH,margin,gap) {
+    const xs=new Set([margin]),ys=new Set([margin]);
+    for(const p of occupied){
+        xs.add(p.x+p.width+gap); ys.add(p.y+p.height+gap);
+        xs.add(Math.max(margin,p.x-width-gap)); ys.add(Math.max(margin,p.y-height-gap));
+    }
+    const candidates=[];
+    for(const y of ys) for(const x of xs) candidates.push({x,y});
+    candidates.sort((a,b)=>a.y-b.y||a.x-b.x);
+    for(const pos of candidates){
+        if(pos.x<margin-.0001||pos.y<margin-.0001||pos.x+width>canvasW-margin+.0001||pos.y+height>canvasH-margin+.0001)continue;
+        const overlap=occupied.some(p=>pos.x<p.x+p.width-.0001&&pos.x+width>p.x+.0001&&pos.y<p.y+p.height-.0001&&pos.y+height>p.y+.0001);
+        if(!overlap)return pos;
+    }
+    return null;
 }
 
 function createTemplatePlacements(queue) {
-    const t = state.template;
-    if (!t) return null;
-
-    if (
-        Math.abs(n(t.widthCm) - state.canvas.widthCm) > 0.0001 ||
-        Math.abs(n(t.heightCm) - state.canvas.heightCm) > 0.0001
-    ) return null;
-
-    const slots = t.frames || t.placements || [];
-    if (!slots.length) return null;
-
-    const bySize = new Map();
-    for (const item of queue) {
-        if (!bySize.has(item.sizeKey)) bySize.set(item.sizeKey, []);
-        bySize.get(item.sizeKey).push(item);
+    const t=state.template; state.templateMissing=[]; state.templateOverflow=[];
+    if(!t||Math.abs(n(t.widthCm)-state.canvas.widthCm)>.0001||Math.abs(n(t.heightCm)-state.canvas.heightCm)>.0001)return null;
+    const slots=t.frames||t.placements||[]; if(!slots.length)return null;
+    const used=new Set(),placements=[],missing=[];
+    for(const slot of slots){
+        const index=queue.findIndex((item,i)=>!used.has(i)&&item.sizeKey===slot.sizeKey);
+        if(index<0){missing.push(slot.sizeKey);continue;}
+        used.add(index);
+        const item=queue[index];
+        placements.push({...item,x:n(slot.x),y:n(slot.y),width:n(slot.width,item.widthCm),height:n(slot.height,item.heightCm),crop:slot.crop||item.crop||null});
     }
-
-    const used = new Map();
-    const placements = [];
-    const missing = [];
-
-    for (const slot of slots) {
-        const list = bySize.get(slot.sizeKey) || [];
-        const index = used.get(slot.sizeKey) || 0;
-
-        if (!list.length || index >= list.length) {
-            missing.push(slot.sizeKey);
-            continue;
-        }
-
-        const item = list[index];
-        used.set(slot.sizeKey, index + 1);
-
-        placements.push({
-            ...item,
-            x: n(slot.x),
-            y: n(slot.y),
-            width: n(slot.width, item.widthCm),
-            height: n(slot.height, item.heightCm)
-        });
+    const margin=Math.max(0,n(marginInput?.value,.5)),gap=Math.max(0,n(gapInput?.value,.3));
+    for(let i=0;i<queue.length;i++){
+        if(used.has(i))continue;
+        const item=queue[i],width=n(item.widthCm),height=n(item.heightCm);
+        const pos=findFreeTemplateSpot(width,height,placements,state.canvas.widthCm,state.canvas.heightCm,margin,gap);
+        if(!pos){state.templateOverflow.push(item);continue;}
+        used.add(i); placements.push({...item,...pos,width,height});
     }
-
-    state.templateMissing = missing;
-    return placements.length ? placements : null;
+    state.templateMissing=missing;
+    return placements.length?placements:null;
 }
 
 loadTemplate();
