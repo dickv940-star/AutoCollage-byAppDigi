@@ -761,11 +761,10 @@ function renderPreview() {
     if (!previewCanvas || !state.canvas?.canvas) return;
 
     const source = state.canvas.canvas;
-    const scale = Math.min(1.5, Math.max(0.15, n(state.zoom, 0.5)));
     if (!source.width || !source.height) return;
 
-    // Keep the preview backing store at the source canvas resolution.
-    // Zoom changes only its displayed size, not the source pixels.
+    // The preview bitmap always retains the exact output pixel dimensions.
+    // Only its CSS display size changes; export quality is unaffected.
     if (previewCanvas.width !== source.width) previewCanvas.width = source.width;
     if (previewCanvas.height !== source.height) previewCanvas.height = source.height;
 
@@ -774,9 +773,21 @@ function renderPreview() {
     ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
     ctx.drawImage(source, 0, 0);
 
-    previewCanvas.style.setProperty("width", Math.max(1, Math.round(source.width * scale)) + "px");
-    previewCanvas.style.setProperty("height", Math.max(1, Math.round(source.height * scale)) + "px");
+    // Fit to the available stage using ONE scale factor for both axes.
+    // This prevents width and height constraints from stretching the ratio.
+    const stage = document.querySelector(".canvas-stage");
+    const stageWidth = Math.max(1, (stage?.clientWidth || window.innerWidth) - 28);
+    const stageHeight = Math.max(1, (stage?.clientHeight || window.innerHeight * 0.65) - 28);
+    const fitScale = Math.min(stageWidth / source.width, stageHeight / source.height);
+    // 50% is the default "fit" view; zoom controls scale relative to that fit.
+    const zoomScale = Math.min(3, Math.max(0.3, n(state.zoom, 0.5) / 0.5));
+    const displayScale = Math.max(0.001, fitScale * zoomScale);
+
+    previewCanvas.style.setProperty("width", (source.width * displayScale).toFixed(3) + "px");
+    previewCanvas.style.setProperty("height", (source.height * displayScale).toFixed(3) + "px");
 }
+
+window.addEventListener("resize", renderPreview);
 
 /* =========================================================
    COLLAGE TEMPLATE
