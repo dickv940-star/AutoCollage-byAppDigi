@@ -461,78 +461,75 @@ function createPrintQueue() {
 ========================================================= */
 
 function packPhotos(queue, canvasW, canvasH, margin, gap) {
-    const sorted = [...queue].sort((a, b) =>
-        b.heightCm - a.heightCm || b.widthCm - a.widthCm
-    );
-
-    const rows = [];
-    let row = null;
+    // Flexible rectangle packing: photos do not need to line up into
+    // identical rows. Each photo keeps its physical size and is placed
+    // into the first available top-left position, including spaces below
+    // shorter photos, while respecting canvas edges and the requested gap.
     const availableWidth = canvasW - margin * 2;
+    const availableHeight = canvasH - margin * 2;
+    const sorted = [...queue].sort((a, b) =>
+        (b.widthCm * b.heightCm) - (a.widthCm * a.heightCm) ||
+        Math.max(b.widthCm, b.heightCm) - Math.max(a.widthCm, a.heightCm)
+    );
+    const placements = [];
+    const EPS = 0.0001;
 
     for (const item of sorted) {
-        if (!row) {
-            row = {
-                items: [],
-                width: 0,
-                height: item.heightCm
+        const w = item.widthCm;
+        const h = item.heightCm;
+
+        if (w > availableWidth + EPS || h > availableHeight + EPS) {
+            return {
+                success: false,
+                reason: `Foto #${item.id} berukuran ${w} × ${h} cm tidak muat di area canvas ${availableWidth.toFixed(2)} × ${availableHeight.toFixed(2)} cm. Perbesar canvas atau kecilkan margin.`
             };
         }
 
-        const nextWidth =
-            row.width +
-            (row.items.length ? gap : 0) +
-            item.widthCm;
+        const xs = new Set([margin]);
+        const ys = new Set([margin]);
+        for (const p of placements) {
+            xs.add(p.x + p.width + gap);
+            ys.add(p.y + p.height + gap);
+        }
 
-        if (nextWidth <= availableWidth + 0.0001) {
-            row.items.push(item);
-            row.width = nextWidth;
-            row.height = Math.max(row.height, item.heightCm);
-        } else {
-            rows.push(row);
-            row = {
-                items: [item],
-                width: item.widthCm,
-                height: item.heightCm
+        const candidates = [];
+        for (const y of ys) {
+            for (const x of xs) {
+                if (x < margin - EPS || y < margin - EPS ||
+                    x + w > canvasW - margin + EPS ||
+                    y + h > canvasH - margin + EPS) continue;
+
+                const clear = placements.every(p =>
+                    x + w + gap <= p.x + EPS ||
+                    x >= p.x + p.width + gap - EPS ||
+                    y + h + gap <= p.y + EPS ||
+                    y >= p.y + p.height + gap - EPS
+                );
+                if (clear) candidates.push({ x, y });
+            }
+        }
+
+        // Prefer the highest available position, then the leftmost.
+        // This naturally creates staggered rows when photo sizes differ.
+        candidates.sort((a, b) => a.y - b.y || a.x - b.x);
+        if (!candidates.length) {
+            return {
+                success: false,
+                reason: `Canvas tidak cukup untuk menempatkan semua foto. Foto #${item.id} tidak menemukan ruang kosong. Kurangi jumlah foto/margin/jarak atau perbesar canvas.`
             };
         }
+
+        const pos = candidates[0];
+        placements.push({
+            ...item,
+            x: pos.x,
+            y: pos.y,
+            width: w,
+            height: h
+        });
     }
 
-    if (row && row.items.length) rows.push(row);
-
-    const totalHeight =
-        rows.reduce((sum, r) => sum + r.height, 0) +
-        Math.max(0, rows.length - 1) * gap;
-
-    if (totalHeight > canvasH - margin * 2 + 0.0001) {
-        return {
-            success: false,
-            reason:
-                `Canvas tidak cukup. Diperlukan sekitar ${totalHeight.toFixed(2)} cm, tersedia ${(canvasH - margin * 2).toFixed(2)} cm.`
-        };
-    }
-
-    const placements = [];
-    let y = margin;
-
-    for (const r of rows) {
-        let x = margin;
-
-        for (const item of r.items) {
-            placements.push({
-                ...item,
-                x,
-                y,
-                width: item.widthCm,
-                height: item.heightCm
-            });
-
-            x += item.widthCm + gap;
-        }
-
-        y += r.height + gap;
-    }
-
-    return { success: true, placements, rows };
+    return { success: true, placements };
 }
 
 function applyAutoSpacing(result, canvasW, margin) {
