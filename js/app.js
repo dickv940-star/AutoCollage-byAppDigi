@@ -630,6 +630,37 @@ function createCanvasState() {
     return { canvas, widthCm, heightCm, dpi, widthPx, heightPx };
 }
 
+// Keep the actual drawing canvas synchronized with the latest size fields.
+// Previously, changing width/height after the first crop left the internal
+// canvas at its old dimensions, so generated photos could appear on a stale canvas.
+function syncCanvasToInputs() {
+    const widthCm = n(canvasWidth?.value, 30);
+    const heightCm = n(canvasHeight?.value, 40);
+    const dpi = n(dpiInput?.value, 300);
+    const current = state.canvas;
+
+    const changed = !current ||
+        Math.abs(current.widthCm - widthCm) > 0.0001 ||
+        Math.abs(current.heightCm - heightCm) > 0.0001 ||
+        current.dpi !== dpi;
+
+    if (!changed) return;
+
+    const next = createCanvasState();
+    state.canvas = next;
+    state.canvasReady = true;
+    state.placements = [];
+    state.generated = false;
+
+    // Keep only manual frames that still fit inside the resized canvas.
+    state.frames = state.frames.filter(frame =>
+        n(frame.x) >= 0 &&
+        n(frame.y) >= 0 &&
+        n(frame.x) + n(frame.width) <= next.widthCm + 0.0001 &&
+        n(frame.y) + n(frame.height) <= next.heightCm + 0.0001
+    );
+}
+
 function drawPhoto(ctx,item,x,y,w,h){
     if(!item.source.image)return;
 
@@ -899,7 +930,7 @@ function generateCollage() {
             )) return;
         }
 
-        if (!state.canvas) state.canvas = createCanvasState();
+        syncCanvasToInputs();
 
         const queue = createPrintQueue();
         if (!queue.length) {
@@ -1876,7 +1907,7 @@ if(workspaceGenerateBtn)
 ========================================================= */
 
 function ensureCanvas(){
-    if(!state.canvas) state.canvas=createCanvasState();
+    syncCanvasToInputs();
     state.canvasReady=true;
     renderCollage();
     updateInfo();
