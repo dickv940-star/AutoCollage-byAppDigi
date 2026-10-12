@@ -12,7 +12,7 @@
 
     <link
         rel="stylesheet"
-        href="css/style.css?v=20261012-crop-frame-fix"
+        href="css/style.css?v=20261012-template-preview-v2"
     >
 </head>
 
@@ -516,16 +516,30 @@
             id="canvasWorkspace"
         >
 
-            <div
-                class="canvas-wrapper"
-                id="canvasWrapper"
-            >
-
-                <canvas
-                    id="collageCanvas"
-                ></canvas>
-
+            <div class="canvas-stage">
+                <div
+                    class="canvas-wrapper"
+                    id="canvasWrapper"
+                >
+                    <canvas id="collageCanvas"></canvas>
+                </div>
             </div>
+
+            <aside class="template-panel" id="templatePanel" aria-label="Contoh layout tersimpan">
+                <div class="template-panel-heading">
+                    <div>
+                        <strong>Contoh Layout</strong>
+                        <small>Template tersimpan</small>
+                    </div>
+                    <span class="template-status" id="templateStatus">—</span>
+                </div>
+                <div class="template-preview-frame">
+                    <canvas id="templatePreviewCanvas" width="180" height="220"></canvas>
+                </div>
+                <p id="templatePreviewMeta" class="template-preview-meta">Belum ada contoh. Atur canvas, lalu klik Simpan sebagai Contoh.</p>
+                <button type="button" class="btn btn-secondary template-clear-btn" id="clearTemplateBtn">Hapus Contoh</button>
+                <p class="template-help">Upload foto berikutnya lalu klik Auto Collage. Posisi contoh akan digunakan selama ukuran canvas sama.</p>
+            </aside>
 
         </div>
 
@@ -601,7 +615,7 @@
      JAVASCRIPT
 ========================================================= -->
 
-<script src="js/app.js?v=20261012-crop-frame-fix" defer></script>
+<script src="js/app.js?v=20261012-template-preview-v2" defer></script>
 
 <!-- PHOTO CROP MODAL -->
 <div class="crop-modal hidden" id="cropModal">
