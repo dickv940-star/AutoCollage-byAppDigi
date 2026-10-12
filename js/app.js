@@ -2056,6 +2056,21 @@ function downloadBlob(blob, filename) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+function getCollageExportName() {
+    // Gunakan nama dasar foto pertama, tanpa akhiran ukuran seperti "2X3" atau "3X4".
+    const firstPhoto = state.files.find(item => item && item.name);
+    if (!firstPhoto) return "Auto-Collage";
+
+    const originalName = firstPhoto.name.replace(/\\.[^/.]+$/, "").trim();
+    const sizeMatch = originalName.match(/\\s+\\d+(?:[.,]\\d+)?\\s*[xX×]\\s*\\d+(?:[.,]\\d+)?(?:\\s.*)?$/);
+    const baseName = sizeMatch
+        ? originalName.slice(0, sizeMatch.index).trim()
+        : (firstPhoto.displayId || originalName).trim();
+
+    // Hilangkan karakter yang tidak aman untuk nama file, tetapi pertahankan spasi dan tanda hubung.
+    return (baseName || "Auto-Collage").replace(/[<>:"/\\\\|?*\\x00-\\x1F]/g, "_");
+}
+
 function exportImage(type) {
     if (!state.canvas || !state.generated) {
         alert("Buat Auto Collage terlebih dahulu.");
@@ -2072,13 +2087,10 @@ function exportImage(type) {
                     return;
                 }
 
-                downloadBlob(
-                    blob,
-                    `auto-collage-${widthCm}x${heightCm}cm-${dpi}dpi.jpg`
-                );
+                downloadBlob(blob, `${getCollageExportName()}.jpg`);
             },
             "image/jpeg",
-            0.95
+            1.0
         );
     } else {
         canvas.toBlob(
