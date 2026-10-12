@@ -783,11 +783,29 @@ function renderPreview() {
     const zoomScale = Math.min(3, Math.max(0.3, n(state.zoom, 0.5) / 0.5));
     const displayScale = Math.max(0.001, fitScale * zoomScale);
 
-    previewCanvas.style.setProperty("width", (source.width * displayScale).toFixed(3) + "px");
-    previewCanvas.style.setProperty("height", (source.height * displayScale).toFixed(3) + "px");
+    const displayWidth = (source.width * displayScale).toFixed(3) + "px";
+    const displayHeight = (source.height * displayScale).toFixed(3) + "px";
+    previewCanvas.style.setProperty("width", displayWidth);
+    previewCanvas.style.setProperty("height", displayHeight);
+
+    // The wrapper is only a holder, not a second visible sheet/frame.
+    const wrapper = document.getElementById("canvasWrapper");
+    if (wrapper) {
+        wrapper.style.setProperty("width", displayWidth);
+        wrapper.style.setProperty("height", displayHeight);
+    }
 }
 
+// Re-fit after the workspace layout has actually settled, not only on window resize.
 window.addEventListener("resize", renderPreview);
+if (typeof ResizeObserver !== "undefined") {
+    const canvasStage = document.querySelector(".canvas-stage");
+    if (canvasStage) {
+        const canvasStageObserver = new ResizeObserver(() => renderPreview());
+        canvasStageObserver.observe(canvasStage);
+    }
+}
+requestAnimationFrame(() => renderPreview());
 
 /* =========================================================
    COLLAGE TEMPLATE
