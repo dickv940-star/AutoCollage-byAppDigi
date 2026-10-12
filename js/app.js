@@ -941,7 +941,7 @@ function generateCollage() {
                 });
             }
 
-            if (framePlacements.length) templatePlacements = framePlacements;
+            templatePlacements = framePlacements;
         }
 
         if (templatePlacements?.length) {
