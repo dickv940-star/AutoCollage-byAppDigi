@@ -635,6 +635,7 @@ function drawPhoto(ctx,item,x,y,w,h){
 
     ctx.filter="none";
     ctx.imageSmoothingEnabled=true;
+    if ("imageSmoothingQuality" in ctx) ctx.imageSmoothingQuality="high";
 
     const img=item.source.image;
     const c=item.crop || item.source.crop;
@@ -798,8 +799,11 @@ function renderTemplatePreview() {
     const meta = document.querySelector("#templatePreviewMeta");
     if (!panel || !canvas || !meta) return;
     const t = state.template;
-    panel.classList.toggle("has-template", !!(t && t.frames?.length));
-    if (!t || !t.frames?.length) {
+    const hasTemplate = !!(t && t.frames?.length);
+    panel.classList.toggle("has-template", hasTemplate);
+    const status = document.querySelector("#templateStatus");
+    if (status) status.textContent = hasTemplate ? "AKTIF" : "KOSONG";
+    if (!hasTemplate) {
         meta.textContent = "Belum ada contoh. Atur canvas, lalu klik Simpan sebagai Contoh.";
         const ctx = canvas.getContext("2d");
         if (ctx) {
