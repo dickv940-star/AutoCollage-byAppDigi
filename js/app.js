@@ -637,7 +637,7 @@ function drawPhoto(ctx,item,x,y,w,h){
     ctx.imageSmoothingEnabled=true;
 
     const img=item.source.image;
-    const c=item.source.crop;
+    const c=item.crop || item.source.crop;
 
     if(c && c.canvas){
         const iw=img.naturalWidth;
@@ -1173,21 +1173,23 @@ if (previewCanvas) {
 const cropOrientationBtn=document.querySelector("#cropOrientationBtn");
 let cropHasSelection=false;
 
-function cropDisplay(){
-    if(!state.crop.item?.image) return null;
+function cropImageFor(item){
+    return item?.image || item?.source?.image || null;
+}
 
-    const i=state.crop.item.image;
+function cropDisplay(){
+    const image=cropImageFor(state.crop.item);
+    if(!image) return null;
     const sw=Math.max(1,cropStage.clientWidth);
     const sh=Math.max(1,cropStage.clientHeight);
-    const base=Math.min(sw/i.naturalWidth,sh/i.naturalHeight);
+    const base=Math.min(sw/image.naturalWidth,sh/image.naturalHeight);
     const scale=base*Math.max(1,Number(state.crop.zoom)||1);
-
     return {
         scale,
-        width:i.naturalWidth*scale,
-        height:i.naturalHeight*scale,
-        left:(sw-i.naturalWidth*scale)/2,
-        top:(sh-i.naturalHeight*scale)/2
+        width:image.naturalWidth*scale,
+        height:image.naturalHeight*scale,
+        left:(sw-image.naturalWidth*scale)/2,
+        top:(sh-image.naturalHeight*scale)/2
     };
 }
 
@@ -1220,97 +1222,67 @@ function cropClampFrame(){
 
 function cropClampImage(){
     if(!state.crop.item||!state.crop.selectionStage)return;
-
-    const d=state.crop.display||cropDisplay();
+    const d=cropDisplay();
     if(!d||!d.scale)return;
-
+    state.crop.display=d;
     const sel=state.crop.selectionStage;
-    const iw=d.width;
-    const ih=d.height;
-
     let left=d.left+(state.crop.imageOffsetX||0)*d.scale;
     let top=d.top+(state.crop.imageOffsetY||0)*d.scale;
-
-    if(iw>=sel.width){
-        left=Math.max(sel.x+sel.width-iw,Math.min(left,sel.x));
-    }else{
-        left=sel.x+(sel.width-iw)/2;
-    }
-
-    if(ih>=sel.height){
-        top=Math.max(sel.y+sel.height-ih,Math.min(top,sel.y));
-    }else{
-        top=sel.y+(sel.height-ih)/2;
-    }
-
+    if(d.width>=sel.width) left=Math.max(sel.x+sel.width-d.width,Math.min(left,sel.x));
+    else left=sel.x+(sel.width-d.width)/2;
+    if(d.height>=sel.height) top=Math.max(sel.y+sel.height-d.height,Math.min(top,sel.y));
+    else top=sel.y+(sel.height-d.height)/2;
     state.crop.imageOffsetX=(left-d.left)/d.scale;
     state.crop.imageOffsetY=(top-d.top)/d.scale;
 }
 
 function cropRender(){
-    if(!state.crop.item||!cropStage)return;
-
-    const d=state.crop.item.image ? cropDisplay() : null;
+    if(!state.crop.item||!cropStage||!cropCanvas||!cropSelection)return;
+    const image=cropImageFor(state.crop.item);
+    const d=image ? cropDisplay() : null;
 
     if(!d){
-        const sw=Math.max(1,cropStage.clientWidth);
-        const sh=Math.max(1,cropStage.clientHeight);
-        cropCanvas.width=sw;
-        cropCanvas.height=sh;
-        cropCanvas.style.position="absolute";
-        cropCanvas.style.left="0px";
-        cropCanvas.style.top="0px";
-        cropCanvas.style.width=sw+"px";
-        cropCanvas.style.height=sh+"px";
-        cropCanvas.style.zIndex="1";
-
+        const sw=Math.max(1,cropStage.clientWidth), sh=Math.max(1,cropStage.clientHeight);
+        if(cropCanvas.width!==sw) cropCanvas.width=sw;
+        if(cropCanvas.height!==sh) cropCanvas.height=sh;
+        Object.assign(cropCanvas.style,{position:"absolute",left:"0px",top:"0px",width:sw+"px",height:sh+"px",zIndex:"1"});
         const ctx=cropCanvas.getContext("2d");
-        ctx.clearRect(0,0,sw,sh);
-        ctx.fillStyle="#20252b";
-        ctx.fillRect(0,0,sw,sh);
-
-        const r=state.crop.selectionStage;
-        if(r){
-            ctx.save();
-            ctx.fillStyle="#e9edf2";
-            ctx.fillRect(r.x,r.y,r.width,r.height);
-            ctx.strokeStyle="#667085";
-            ctx.lineWidth=2;
-            ctx.setLineDash([8,5]);
-            ctx.strokeRect(r.x,r.y,r.width,r.height);
-            ctx.setLineDash([]);
-            ctx.fillStyle="#667085";
-            ctx.font="600 18px Arial";
-            ctx.textAlign="center";
-            ctx.textBaseline="middle";
-            ctx.fillText("FRAME KOSONG",r.x+r.width/2,r.y+r.height/2);
-            ctx.restore();
+        if(ctx){
+            ctx.clearRect(0,0,sw,sh);
+            ctx.fillStyle="#20252b"; ctx.fillRect(0,0,sw,sh);
+            const r=state.crop.selectionStage;
+            if(r){
+                ctx.save(); ctx.fillStyle="#e9edf2"; ctx.fillRect(r.x,r.y,r.width,r.height);
+                ctx.strokeStyle="#667085"; ctx.lineWidth=2; ctx.setLineDash([8,5]);
+                ctx.strokeRect(r.x,r.y,r.width,r.height); ctx.setLineDash([]);
+                ctx.fillStyle="#667085"; ctx.font="600 18px Arial";
+                ctx.textAlign="center"; ctx.textBaseline="middle";
+                ctx.fillText("FRAME KOSONG",r.x+r.width/2,r.y+r.height/2); ctx.restore();
+            }
         }
     }else{
         state.crop.display=d;
-        cropCanvas.width=Math.max(1,Math.round(d.width));
-        cropCanvas.height=Math.max(1,Math.round(d.height));
-        cropCanvas.style.position="absolute";
-        cropCanvas.style.left=(d.left+(state.crop.imageOffsetX||0)*d.scale)+"px";
-        cropCanvas.style.top=(d.top+(state.crop.imageOffsetY||0)*d.scale)+"px";
-        cropCanvas.style.width=d.width+"px";
-        cropCanvas.style.height=d.height+"px";
-        cropCanvas.style.pointerEvents="auto";
-        cropCanvas.style.touchAction="none";
-        cropCanvas.style.zIndex="1";
-
+        const cw=Math.max(1,Math.round(d.width)), ch=Math.max(1,Math.round(d.height));
+        if(cropCanvas.width!==cw) cropCanvas.width=cw;
+        if(cropCanvas.height!==ch) cropCanvas.height=ch;
+        Object.assign(cropCanvas.style,{
+            position:"absolute",
+            left:(d.left+(state.crop.imageOffsetX||0)*d.scale)+"px",
+            top:(d.top+(state.crop.imageOffsetY||0)*d.scale)+"px",
+            width:d.width+"px",height:d.height+"px",
+            pointerEvents:"auto",touchAction:"none",zIndex:"1"
+        });
         const ctx=cropCanvas.getContext("2d");
-        ctx.clearRect(0,0,cropCanvas.width,cropCanvas.height);
-        ctx.filter="none";
-        ctx.drawImage(state.crop.item.image,0,0,cropCanvas.width,cropCanvas.height);
+        if(ctx){ctx.clearRect(0,0,cropCanvas.width,cropCanvas.height);ctx.filter="none";ctx.drawImage(image,0,0,cropCanvas.width,cropCanvas.height);}
     }
-
-    cropSelection.style.left=state.crop.selectionStage.x+"px";
-    cropSelection.style.top=state.crop.selectionStage.y+"px";
-    cropSelection.style.width=state.crop.selectionStage.width+"px";
-    cropSelection.style.height=state.crop.selectionStage.height+"px";
-    cropSelection.style.zIndex="3";
+    const r=state.crop.selectionStage;
+    if(r){
+        cropSelection.style.left=r.x+"px"; cropSelection.style.top=r.y+"px";
+        cropSelection.style.width=r.width+"px"; cropSelection.style.height=r.height+"px";
+        cropSelection.style.zIndex="3";
+    }
 }
+
 function cropInitSelection(){
     const d=cropDisplay();
     if(!d)return;
@@ -1344,82 +1316,67 @@ function cropInitSelection(){
 }
 
 function cropSourceRectFromSelection(){
-    const i=state.crop.item;
-    const s=state.crop.selectionStage;
-    if(!i||!s)return null;
-
-    if(!i.image){
-        state.crop.sourceRect=null;
-        return null;
-    }
-
-    const d=state.crop.display||cropDisplay();
+    const image=cropImageFor(state.crop.item), s=state.crop.selectionStage;
+    if(!state.crop.item||!image||!s)return null;
+    const d=cropDisplay();
     if(!d||!d.scale)return null;
-
-    const x=((s.x-d.left)/d.scale)/i.image.naturalWidth;
-    const y=((s.y-d.top)/d.scale)/i.image.naturalHeight;
-    const w=(s.width/d.scale)/i.image.naturalWidth;
-    const h=(s.height/d.scale)/i.image.naturalHeight;
-
-    state.crop.sourceRect={
-        x:Math.max(0,Math.min(1,x)),
-        y:Math.max(0,Math.min(1,y)),
-        width:Math.max(.0001,Math.min(1,w)),
-        height:Math.max(.0001,Math.min(1,h))
-    };
+    state.crop.display=d;
+    const imageLeft=d.left+(state.crop.imageOffsetX||0)*d.scale;
+    const imageTop=d.top+(state.crop.imageOffsetY||0)*d.scale;
+    const x=(s.x-imageLeft)/d.scale/image.naturalWidth;
+    const y=(s.y-imageTop)/d.scale/image.naturalHeight;
+    const w=s.width/d.scale/image.naturalWidth;
+    const h=s.height/d.scale/image.naturalHeight;
+    const left=Math.max(0,Math.min(1,x)), top=Math.max(0,Math.min(1,y));
+    const right=Math.max(left+0.0001,Math.min(1,x+w));
+    const bottom=Math.max(top+0.0001,Math.min(1,y+h));
+    state.crop.sourceRect={x:left,y:top,width:right-left,height:bottom-top};
     return state.crop.sourceRect;
 }
 function openCrop(item){
     if(!item)return;
-
     state.crop.item=item;
-    state.crop.zoom=1;
+    const image=cropImageFor(item);
+    const saved=item.crop?.canvas || item.source?.crop?.canvas || null;
+    state.crop.zoom=Math.max(1,n(saved?.zoom,1));
+    if(cropZoom) cropZoom.value=String(state.crop.zoom);
     state.crop.imageOffsetX=0;
     state.crop.imageOffsetY=0;
-    state.crop.sourceRect=null;
+    state.crop.sourceRect=saved?.sourceRect ? {...saved.sourceRect} : null;
 
-    const hasImage=!!item.image;
-    cropTitle.textContent=hasImage ? "Atur Canvas Foto" : "Buat / Atur Frame Foto";
-    cropSubtitle.textContent=hasImage
-        ? "Geser foto di dalam frame. Foto asli tidak diubah."
-        : "Frame kosong — foto dapat dimasukkan setelahnya.";
+    const hasImage=!!image;
+    cropTitle.textContent=hasImage ? "Atur Frame Canvas" : "Buat / Atur Frame Canvas";
+    cropSubtitle.textContent=hasImage ? "Geser foto di dalam frame; foto asli tidak diubah." : "Frame kosong — foto dapat dipasangkan setelahnya.";
     cropZoom.disabled=!hasImage;
 
-    const ratio=Math.max(.05,n(item.width,2)/Math.max(.05,n(item.height,3)));
-    state.crop.aspect=ratio;
-
+    const width=Math.max(.1,n(item.width,item.source?.width||2));
+    const height=Math.max(.1,n(item.height,item.source?.height||3));
+    state.crop.aspect=width/height;
     cropModal.classList.remove("hidden");
 
     requestAnimationFrame(()=>{
-        const sw=Math.max(1,cropStage.clientWidth);
-        const sh=Math.max(1,cropStage.clientHeight);
-
-        let w=Math.min(sw*.62, sh*.62*ratio);
-        let h=w/ratio;
-
+        const sw=Math.max(1,cropStage.clientWidth), sh=Math.max(1,cropStage.clientHeight);
+        const ratio=Math.max(.05,state.crop.aspect);
+        let w=Math.min(sw*.62,sh*.62*ratio), h=w/ratio;
         if(h>sh*.62){h=sh*.62;w=h*ratio;}
-
-        const saved=item.crop?.canvas;
-        state.crop.selectionStage={
-            x:(sw-w)/2,
-            y:(sh-h)/2,
-            width:w,
-            height:h
-        };
-
-        if(saved?.sourceRect && hasImage){
-            state.crop.sourceRect={...saved.sourceRect};
-        }
-
+        state.crop.selectionStage={x:(sw-w)/2,y:(sh-h)/2,width:w,height:h};
         cropRatioLabel.textContent="Rasio: "+(ratio>=1?"Landscape":"Portrait");
-
-        if(frameWidthInput) frameWidthInput.value=n(item.width,2);
-        if(frameHeightInput) frameHeightInput.value=n(item.height,3);
+        if(frameWidthInput) frameWidthInput.value=width;
+        if(frameHeightInput) frameHeightInput.value=height;
         if(frameXInput) frameXInput.value=n(item.x,1);
         if(frameYInput) frameYInput.value=n(item.y,1);
 
+        const d=cropDisplay();
+        if(d && image && saved?.sourceRect){
+            const sr=saved.sourceRect;
+            const imageLeft=state.crop.selectionStage.x-n(sr.x)*image.naturalWidth*d.scale;
+            const imageTop=state.crop.selectionStage.y-n(sr.y)*image.naturalHeight*d.scale;
+            state.crop.imageOffsetX=(imageLeft-d.left)/d.scale;
+            state.crop.imageOffsetY=(imageTop-d.top)/d.scale;
+        }
+        state.crop.lastStageWidth=sw; state.crop.lastStageHeight=sh;
         cropHasSelection=true;
-        cropRender();
+        cropClampFrame(); cropClampImage(); cropSourceRectFromSelection(); cropRender();
     });
 }
 function closeCrop(){
@@ -1443,27 +1400,16 @@ function cropPos(e){
 }
 
 function cropStartImage(e){
-    e.preventDefault();
-    e.stopPropagation();
-
+    e.preventDefault(); e.stopPropagation();
     const p=cropPos(e);
-    state.crop.startX=p.x;
-    state.crop.startY=p.y;
+    state.crop.startX=p.x; state.crop.startY=p.y;
     state.crop.startOffsetX=state.crop.imageOffsetX||0;
     state.crop.startOffsetY=state.crop.imageOffsetY||0;
-
-    // Di dalam frame = pindahkan Canvas.
-    // Di luar frame = pindahkan foto.
     const r=state.crop.selectionStage;
     const inside=r&&p.x>=r.x&&p.x<=r.x+r.width&&p.y>=r.y&&p.y<=r.y+r.height;
-
-    if(inside){
-        state.crop.startSelection={...r};
-        state.crop.movingFrame=true;
-    }else{
-        state.crop.movingImage=true;
-    }
-
+    const edge=inside&&(p.x-r.x<12||r.x+r.width-p.x<12||p.y-r.y<12||r.y+r.height-p.y<12);
+    if(edge){state.crop.startSelection={...r};state.crop.movingFrame=true;}
+    else{state.crop.movingImage=!!cropImageFor(state.crop.item);}
     try{cropStage.setPointerCapture(e.pointerId)}catch{}
 }
 
@@ -1668,67 +1614,39 @@ function cropToggleOrientation(){
 
 function saveCrop(){
     if(!state.crop.item||!cropHasSelection)return;
-
-    const item=state.crop.item;
+    const item=state.crop.item, image=cropImageFor(state.crop.item);
     const width=Math.max(.1,n(frameWidthInput?.value,item.width||2));
     const height=Math.max(.1,n(frameHeightInput?.value,item.height||3));
-    const maxX=Math.max(0,n(state.canvas?.widthCm,30)-width);
-    const maxY=Math.max(0,n(state.canvas?.heightCm,40)-height);
-    const posX=Math.max(0,Math.min(maxX,n(frameXInput?.value,item.x||0)));
-    const posY=Math.max(0,Math.min(maxY,n(frameYInput?.value,item.y||0)));
+    const canvasW=n(state.canvas?.widthCm,30), canvasH=n(state.canvas?.heightCm,40);
+    const posX=Math.max(0,Math.min(Math.max(0,canvasW-width),n(frameXInput?.value,item.x||0)));
+    const posY=Math.max(0,Math.min(Math.max(0,canvasH-height),n(frameYInput?.value,item.y||0)));
 
-    item.x=posX;
-    item.y=posY;
-    item.width=width;
-    item.height=height;
-    item.widthCm=width;
-    item.heightCm=height;
-    item.sizeKey=`${width}x${height}`;
+    item._frameId=item._frameId||("frame-"+Date.now()+"-"+Math.random().toString(36).slice(2,7));
+    item.x=posX; item.y=posY; item.width=width; item.height=height;
+    const source=item.source && item.source.image ? item.source : (item.image ? item : null);
+    item.sizeKey=source ? source.sizeKey : (width+"x"+height);
 
-    if(item.image){
+    if(image){
         cropSourceRectFromSelection();
         const sr=state.crop.sourceRect;
         if(sr){
-            item.crop={
-                canvas:{
-                    width,
-                    height,
-                    ratio:state.crop.aspect,
-                    zoom:Math.max(1,Number(state.crop.zoom)||1),
-                    sourceRect:{
-                        x:Math.max(0,Math.min(1,n(sr.x))),
-                        y:Math.max(0,Math.min(1,n(sr.y))),
-                        width:Math.max(.0001,Math.min(1,n(sr.width))),
-                        height:Math.max(.0001,Math.min(1,n(sr.height)))
-                    },
-                    centerX:Math.max(0,Math.min(1,n(sr.x)+n(sr.width)/2)),
-                    centerY:Math.max(0,Math.min(1,n(sr.y)+n(sr.height)/2)),
-                    frameRatio:state.crop.selectionStage.width/
-                        Math.max(1,state.crop.selectionStage.height)
-                }
-            };
+            item.crop={canvas:{
+                width,height,ratio:width/height,zoom:Math.max(1,n(state.crop.zoom,1)),
+                sourceRect:{x:Math.max(0,Math.min(1,n(sr.x))),y:Math.max(0,Math.min(1,n(sr.y))),
+                    width:Math.max(.0001,Math.min(1,n(sr.width))),height:Math.max(.0001,Math.min(1,n(sr.height)))}
+            }};
         }
-    }
+    }else delete item.crop;
 
-    // Empty frame dibuat/diubah tanpa membutuhkan foto.
-    const existing=state.frames.findIndex(x=>x._frameId===item._frameId);
-    const frame={
-        _frameId:item._frameId||("frame-"+Date.now()+"-"+Math.random().toString(36).slice(2,7)),
-        sizeKey:item.sizeKey,
-        x:n(item.x,1),
-        y:n(item.y,1),
-        width,
-        height,
-        source:item.image?item.source||item:null
-    };
+    const existing=state.frames.findIndex(x=>x._frameId===item._frameId || (source&&x.source===source));
+    const frame={_frameId:item._frameId,sizeKey:item.sizeKey,x:posX,y:posY,width,height,source,crop:image&&item.crop?item.crop:null};
+    if(existing>=0){frame._frameId=state.frames[existing]._frameId;Object.assign(state.frames[existing],frame);item._frameId=frame._frameId;}
+    else{state.frames.push(frame);item._frameId=frame._frameId;}
 
-    if(existing>=0) state.frames[existing]={...state.frames[existing],...frame};
-    else state.frames.push(frame);
-
-    closeCrop();
-    renderCollage();
-    updateInfo();
+    closeCrop(); state.generated=false; state.placements=[];
+    renderCollage(); updateInfo();
 }
+
 let cropResizeTimer=null;
 window.addEventListener("resize",()=>{
     if(!state.crop?.item||cropModal?.classList.contains("hidden"))return;
@@ -1876,14 +1794,25 @@ if(fileList){
     fileList.addEventListener("click",e=>{
         const b=e.target.closest("[data-crop-id]");
         if(!b)return;
-
         e.preventDefault();
         e.stopPropagation();
-
         const g=state.groups.get(b.dataset.cropId);
         const item=g?.files.get(b.dataset.cropSize);
+        if(!item)return;
 
-        if(item)openCrop(item);
+        let frame=state.frames.find(x=>x.source===item);
+        if(!frame){
+            const width=Math.max(.1,n(item.width,2)), height=Math.max(.1,n(item.height,3));
+            frame={
+                _frameId:"frame-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),
+                sizeKey:item.sizeKey,
+                x:Math.max(0,(n(state.canvas?.widthCm,30)-width)/2),
+                y:Math.max(0,(n(state.canvas?.heightCm,40)-height)/2),
+                width,height,source:item,crop:null
+            };
+            state.frames.push(frame);
+        }
+        openCrop(frame);
     });
 }
 
