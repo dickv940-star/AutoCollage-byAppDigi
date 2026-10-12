@@ -1067,9 +1067,11 @@ function shuffleLayout() {
 
 function workspacePoint(e) {
     const r = previewCanvas.getBoundingClientRect();
+    // Use the actual displayed-to-backing-store ratio. state.zoom can differ
+    // from the CSS scale after browser resizing or zoom clamping.
     return {
-        x: (e.clientX - r.left) / Math.max(0.0001, state.zoom),
-        y: (e.clientY - r.top) / Math.max(0.0001, state.zoom)
+        x: (e.clientX - r.left) * (previewCanvas.width / Math.max(1, r.width)),
+        y: (e.clientY - r.top) * (previewCanvas.height / Math.max(1, r.height))
     };
 }
 
@@ -1137,6 +1139,19 @@ function moveWorkspaceDrag(e) {
         0,
         Math.min(state.canvas.heightCm - p.height, state.drag.startTop + dyCm)
     );
+
+    // Keep the saved crop frame in sync with its generated placement.
+    // Otherwise a frame can appear to move but jump back on the next render.
+    if (state.generated && state.frames.length) {
+        const frame = state.frames.find(f =>
+            (p._frameId && f._frameId === p._frameId) ||
+            (p.source && f.source === p.source)
+        );
+        if (frame) {
+            frame.x = p.x;
+            frame.y = p.y;
+        }
+    }
 
     renderCollage();
 }
