@@ -1438,8 +1438,13 @@ function openCrop(item){
     state.crop.sourceRect=saved?.sourceRect ? {...saved.sourceRect} : null;
 
     const hasImage=!!image;
-    cropTitle.textContent=hasImage ? "Atur Frame Canvas" : "Buat / Atur Frame Canvas";
-    cropSubtitle.textContent=hasImage ? "Geser foto di dalam frame; foto asli tidak diubah." : "Frame kosong — foto dapat dipasangkan setelahnya.";
+    const isCanvasCrop = !!item._isCanvasCrop;
+    cropTitle.textContent = isCanvasCrop
+        ? "Potong Ukuran Kanvas"
+        : (hasImage ? "Atur Frame Foto" : "Buat / Atur Frame Foto");
+    cropSubtitle.textContent = isCanvasCrop
+        ? "Atur batas potong. Kanvas utama akan mengikuti area yang dipilih."
+        : (hasImage ? "Geser foto di dalam frame; foto asli tidak diubah." : "Frame kosong — foto dapat dipasangkan setelahnya.");
     cropZoom.disabled=!hasImage;
 
     const width=Math.max(.1,n(item.width,item.source?.width||2));
@@ -1708,6 +1713,41 @@ function cropToggleOrientation(){
 function saveCrop(){
     if(!state.crop.item||!cropHasSelection)return;
     const item=state.crop.item, image=cropImageFor(state.crop.item);
+
+    // Crop Canvas mode changes the dimensions of the ONE working canvas.
+    // It does not add a smaller frame on top of a permanent 30 x 40 canvas.
+    if(item._isCanvasCrop){
+        cropSourceRectFromSelection();
+        const sr=state.crop.sourceRect;
+        if(!sr || !state.canvas){
+            alert("Area crop belum valid. Silakan atur ulang crop.");
+            return;
+        }
+        const oldWidth=state.canvas.widthCm;
+        const oldHeight=state.canvas.heightCm;
+        const dpi=state.canvas.dpi;
+        const widthCm=Math.max(0.1,oldWidth*sr.width);
+        const heightCm=Math.max(0.1,oldHeight*sr.height);
+        const widthPx=Math.max(1,Math.round(cmToPx(widthCm,dpi)));
+        const heightPx=Math.max(1,Math.round(cmToPx(heightCm,dpi)));
+        if((widthPx*heightPx)/1000000>100){
+            alert("Ukuran crop terlalu besar. Turunkan DPI atau kecilkan area crop.");
+            return;
+        }
+
+        if(canvasWidth) canvasWidth.value=widthCm.toFixed(2);
+        if(canvasHeight) canvasHeight.value=heightCm.toFixed(2);
+        state.canvas=createCanvasState();
+        state.canvasReady=true;
+        state.frames=[];
+        state.placements=[];
+        state.generated=false;
+        closeCrop();
+        renderCollage();
+        updateInfo();
+        return;
+    }
+
     const width=Math.max(.1,n(frameWidthInput?.value,item.width||2));
     const height=Math.max(.1,n(frameHeightInput?.value,item.height||3));
     const canvasW=n(state.canvas?.widthCm,30), canvasH=n(state.canvas?.heightCm,40);
@@ -1912,21 +1952,46 @@ if(fileList){
     });
 }
 
-function openFirstCrop(){
-    if(!state.canvas){
-        ensureCanvas();
-    }
+function openCanvasCrop(){
+    try{
+        if(!state.canvas) ensureCanvas();
+        if(!state.canvas?.canvas) return;
 
-    if(state.frames.length){
-        openCrop(state.frames[state.frames.length-1]);
-        return;
+        // A temporary snapshot is used only inside the crop editor.
+        // Saving updates the dimensions of the single visible working canvas.
+        const snapshot=new Image();
+        snapshot.onload=()=>{
+            openCrop({
+                _isCanvasCrop:true,
+                image:snapshot,
+                width:state.canvas.widthCm,
+                height:state.canvas.heightCm,
+                x:0,
+                y:0,
+                crop:null
+            });
+            requestAnimationFrame(()=>{
+                if(state.crop.item?._isCanvasCrop){
+                    cropSourceRectFromSelection();
+                    const sr=state.crop.sourceRect;
+                    if(sr){
+                        if(frameWidthInput) frameWidthInput.value=(state.canvas.widthCm*sr.width).toFixed(2);
+                        if(frameHeightInput) frameHeightInput.value=(state.canvas.heightCm*sr.height).toFixed(2);
+                        state.crop.aspect=Math.max(.05,n(frameWidthInput?.value,1)/Math.max(.1,n(frameHeightInput?.value,1)));
+                        cropRatioLabel.textContent="Rasio: "+(state.crop.aspect>=1?"Landscape":"Portrait");
+                    }
+                }
+            });
+        };
+        snapshot.onerror=()=>alert("Tidak dapat membuka kanvas untuk dipotong.");
+        snapshot.src=state.canvas.canvas.toDataURL("image/png");
+    }catch(e){
+        alert(e.message||"Gagal membuka crop kanvas.");
     }
-
-    addEmptyFrame();
 }
 
 if(cropCanvasBtn)
-    cropCanvasBtn.addEventListener("click",openFirstCrop);
+    cropCanvasBtn.addEventListener("click",openCanvasCrop);
 
 if(workspaceGenerateBtn)
     workspaceGenerateBtn.addEventListener("click",generateCollage);
