@@ -910,7 +910,7 @@ function generateCollage() {
 
         // Active frames take priority over a saved example layout.
         // A frame tied to a specific source must keep that source and crop.
-        if (state.frames.length) {
+        if (state.frames.length && !templatePlacements) {
             const usedIndexes = new Set();
             const framePlacements = [];
 
@@ -942,6 +942,11 @@ function generateCollage() {
             }
 
             templatePlacements = framePlacements;
+        }
+
+        if (state.templateOverflow?.length) {
+            alert("Contoh tersimpan tidak memiliki ruang cukup untuk semua foto tambahan. Kurangi jumlah foto, ubah ukuran canvas, atau simpan contoh dengan jumlah posisi yang lebih banyak.");
+            return;
         }
 
         if (templatePlacements?.length) {
@@ -1909,6 +1914,10 @@ if (saveTemplateBtn) {
     saveTemplateBtn.addEventListener("click", saveTemplate);
     updateTemplateButton();
 }
+renderTemplatePreview();
+
+const clearTemplateBtn = document.querySelector("#clearTemplateBtn");
+if (clearTemplateBtn) clearTemplateBtn.addEventListener("click", clearTemplate);
 
 /* =========================================================
    EXPORT
