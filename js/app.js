@@ -1182,7 +1182,10 @@ function cropDisplay(){
     if(!image) return null;
     const sw=Math.max(1,cropStage.clientWidth);
     const sh=Math.max(1,cropStage.clientHeight);
-    const base=Math.min(sw/image.naturalWidth,sh/image.naturalHeight);
+    const selection=state.crop.selectionStage;
+    const base=selection
+        ? Math.max(selection.width/image.naturalWidth,selection.height/image.naturalHeight)
+        : Math.min(sw/image.naturalWidth,sh/image.naturalHeight);
     const scale=base*Math.max(1,Number(state.crop.zoom)||1);
     return {
         scale,
@@ -1753,7 +1756,10 @@ if(cropResetBtn){
         state.crop.zoom=1;
         cropZoom.value="1";
         state.crop.aspect=
-            Math.max(.05,state.crop.item.width/state.crop.item.height);
+            Math.max(.05,n(frameWidthInput?.value,state.crop.item.width||2)/
+                Math.max(.1,n(frameHeightInput?.value,state.crop.item.height||3)));
+        if(frameWidthInput) frameWidthInput.value=n(state.crop.item.width,2);
+        if(frameHeightInput) frameHeightInput.value=n(state.crop.item.height,3);
         state.crop.imageOffsetX=0;
         state.crop.imageOffsetY=0;
 
