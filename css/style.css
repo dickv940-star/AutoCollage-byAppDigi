@@ -2370,8 +2370,8 @@ button:focus-visible, input:focus-visible, label:focus-within {
     height: 100%;
     overflow: auto;
     display: flex;
-    align-items: center;
-    justify-content: center;
+    align-items: flex-start;
+    justify-content: flex-start;
 }
 .canvas-stage .canvas-wrapper {
     box-sizing: content-box;
@@ -2404,8 +2404,8 @@ button:focus-visible, input:focus-visible, label:focus-within {
         min-height: 320px;
         max-height: none;
         overflow: auto;
-        align-items: center;
-        justify-content: center;
+        align-items: flex-start;
+        justify-content: flex-start;
     }
     .canvas-stage .canvas-wrapper {
         max-width: none;
