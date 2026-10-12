@@ -2355,8 +2355,7 @@ button:focus-visible, input:focus-visible, label:focus-within {
 
 
 /* =========================================================
-   CANVAS PREVIEW RATIO FIX
-   Keep exactly one visible preview canvas and one clean frame.
+   CANVAS PREVIEW — single frame, exact aspect ratio
 ========================================================= */
 .canvas-workspace {
     min-width: 0;
@@ -2364,41 +2363,56 @@ button:focus-visible, input:focus-visible, label:focus-within {
 }
 .canvas-stage {
     box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     min-width: 0;
     min-height: 0;
     height: 100%;
     overflow: auto;
-    display: flex;
-    align-items: flex-start;
-    justify-content: flex-start;
+    padding: 8px;
 }
+.canvas-stage #canvasWrapper,
 .canvas-stage .canvas-wrapper {
-    box-sizing: border-box;
-    flex: 0 0 auto;
-    width: max-content;
-    height: max-content;
-    max-width: none;
-    max-height: none;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-}
-.canvas-stage #collageCanvas {
     display: block;
+    box-sizing: content-box;
+    flex: 0 0 auto;
     width: auto;
     height: auto;
+    min-width: 0;
+    min-height: 0;
     max-width: none !important;
     max-height: none !important;
     margin: 0;
     padding: 0;
-    border: 0;
+    border: 0 !important;
+    outline: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    overflow: visible;
+    transition: none;
+}
+.canvas-stage #collageCanvas {
+    display: block;
+    box-sizing: content-box;
+    width: auto;
+    height: auto;
+    min-width: 0;
+    min-height: 0;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0;
+    padding: 0;
+    border: 0 !important;
+    outline: 0 !important;
     flex: 0 0 auto;
     object-fit: fill;
+    background: #fff;
 }
 @media (max-width: 760px) {
     .canvas-workspace {
         grid-template-columns: minmax(0, 1fr);
-        grid-template-rows: auto auto;
+        grid-template-rows: minmax(320px, auto) auto;
         overflow: visible;
     }
     .canvas-stage {
@@ -2406,13 +2420,8 @@ button:focus-visible, input:focus-visible, label:focus-within {
         height: clamp(320px, 58vh, 520px);
         min-height: 320px;
         max-height: none;
+        align-items: center;
+        justify-content: center;
         overflow: auto;
-        align-items: flex-start;
-        justify-content: flex-start;
-    }
-    .canvas-stage .canvas-wrapper,
-    .canvas-stage #collageCanvas {
-        max-width: none !important;
-        max-height: none !important;
     }
 }
