@@ -2356,8 +2356,7 @@ button:focus-visible, input:focus-visible, label:focus-within {
 
 /* =========================================================
    CANVAS PREVIEW RATIO FIX
-   The preview is scaled with one JS-calculated factor, never
-   constrained independently by max-width and max-height.
+   Keep exactly one visible preview canvas and one clean frame.
 ========================================================= */
 .canvas-workspace {
     min-width: 0;
@@ -2374,14 +2373,15 @@ button:focus-visible, input:focus-visible, label:focus-within {
     justify-content: flex-start;
 }
 .canvas-stage .canvas-wrapper {
-    box-sizing: content-box;
+    box-sizing: border-box;
     flex: 0 0 auto;
     width: max-content;
     height: max-content;
     max-width: none;
     max-height: none;
-    margin: auto;
-    overflow: visible;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
 }
 .canvas-stage #collageCanvas {
     display: block;
@@ -2389,6 +2389,9 @@ button:focus-visible, input:focus-visible, label:focus-within {
     height: auto;
     max-width: none !important;
     max-height: none !important;
+    margin: 0;
+    padding: 0;
+    border: 0;
     flex: 0 0 auto;
     object-fit: fill;
 }
@@ -2407,10 +2410,7 @@ button:focus-visible, input:focus-visible, label:focus-within {
         align-items: flex-start;
         justify-content: flex-start;
     }
-    .canvas-stage .canvas-wrapper {
-        max-width: none;
-        max-height: none;
-    }
+    .canvas-stage .canvas-wrapper,
     .canvas-stage #collageCanvas {
         max-width: none !important;
         max-height: none !important;
