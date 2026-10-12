@@ -2057,24 +2057,20 @@ function downloadBlob(blob, filename) {
 }
 
 function getCollageExportName() {
-    // Ambil nama dasar foto pertama, hilangkan ekstensi dan akhiran ukuran seperti "2X3"/"3X4".
+    // parseFilename() sudah menyimpan nama dasar ke displayId:
+    // "DSCF8631 2X3.jpg" dan "DSCF8631 3X4.jpg" menjadi "DSCF8631".
     const firstPhoto = state.files.find(item => item && item.name);
     if (!firstPhoto) return "Auto-Collage";
 
     const dot = firstPhoto.name.lastIndexOf(".");
     const originalName = (dot > 0 ? firstPhoto.name.slice(0, dot) : firstPhoto.name).trim();
-    const sizeMatch = originalName.match(/\s+\d+(?:[.,]\d+)?\s*[xX×]\s*\d+(?:[.,]\d+)?(?:\s.*)?$/);
-    let baseName = sizeMatch
-        ? originalName.slice(0, sizeMatch.index).trim()
-        : (firstPhoto.displayId || originalName).trim();
+    let baseName = String(firstPhoto.displayId || originalName).trim();
 
-    // Karakter yang dilarang pada nama file Windows diganti; nama biasa seperti DSCF8631 tetap utuh.
-    baseName = baseName
-        .replace(/[<>:"\/|?*]/g, "_")
-        .replace(/\\/g, "_")
-        .replace(/[\u0000-\u001F]/g, "")
-        .trim();
+    // Jika displayId masih memuat ukuran, buang bagian ukuran di akhir nama.
+    baseName = baseName.replace(/\s+\d+(?:[.,]\d+)?\s*[xX×]\s*\d+(?:[.,]\d+)?\s*$/, "").trim();
 
+    // Ganti hanya karakter yang memang dilarang pada nama file Windows.
+    baseName = baseName.replace(/[<>:"\/|?*]/g, "_").replace(/\\/g, "_").replace(/[\u0000-\u001F]/g, "").trim();
     return baseName || "Auto-Collage";
 }
 
