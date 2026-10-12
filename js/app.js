@@ -908,31 +908,40 @@ function generateCollage() {
 
         let templatePlacements = createTemplatePlacements(queue);
 
-        // Jika frame sudah dibuat pada canvas aktif, gunakan layout tersebut.
-        if (!templatePlacements && state.frames.length) {
-            const bySize = new Map();
-            for (const item of queue) {
-                if (!bySize.has(item.sizeKey)) bySize.set(item.sizeKey, []);
-                bySize.get(item.sizeKey).push(item);
-            }
+        // Active frames take priority over a saved example layout.
+        // A frame tied to a specific source must keep that source and crop.
+        if (state.frames.length) {
+            const usedIndexes = new Set();
+            const framePlacements = [];
 
-            const used = new Map();
-            templatePlacements = [];
             for (const frame of state.frames) {
-                const list = bySize.get(frame.sizeKey) || [];
-                const index = used.get(frame.sizeKey) || 0;
-                if (!list[index]) continue;
+                let index = -1;
+                const source = frame.source || null;
 
-                const item = list[index];
-                used.set(frame.sizeKey, index + 1);
-                templatePlacements.push({
+                if (source) {
+                    index = queue.findIndex((item, i) =>
+                        !usedIndexes.has(i) && item.source === source
+                    );
+                } else {
+                    index = queue.findIndex((item, i) =>
+                        !usedIndexes.has(i) && item.sizeKey === frame.sizeKey
+                    );
+                }
+
+                if (index < 0) continue;
+                usedIndexes.add(index);
+                const item = queue[index];
+                framePlacements.push({
                     ...item,
                     x: frame.x,
                     y: frame.y,
                     width: frame.width,
-                    height: frame.height
+                    height: frame.height,
+                    crop: frame.crop || item.crop || null
                 });
             }
+
+            if (framePlacements.length) templatePlacements = framePlacements;
         }
 
         if (templatePlacements?.length) {
@@ -1790,6 +1799,34 @@ if(cropZoom){
         cropRender();
     });
 }
+
+function syncCropFrameRatio(){
+    if(!state.crop.item || cropModal?.classList.contains("hidden")) return;
+    const width=Math.max(.1,n(frameWidthInput?.value,2));
+    const height=Math.max(.1,n(frameHeightInput?.value,3));
+    state.crop.aspect=width/height;
+    const old=state.crop.selectionStage;
+    if(old){
+        const sw=Math.max(1,cropStage.clientWidth), sh=Math.max(1,cropStage.clientHeight);
+        const cx=old.x+old.width/2, cy=old.y+old.height/2;
+        let w=Math.min(old.width,sw*.92,sh*.92*state.crop.aspect);
+        let h=w/state.crop.aspect;
+        if(h>sh*.92){h=sh*.92;w=h*state.crop.aspect;}
+        if(w>sw*.92){w=sw*.92;h=w/state.crop.aspect;}
+        state.crop.selectionStage={
+            x:Math.max(0,Math.min(sw-w,cx-w/2)),
+            y:Math.max(0,Math.min(sh-h,cy-h/2)),
+            width:w,height:h
+        };
+        cropClampImage();
+        cropSourceRectFromSelection();
+        cropRender();
+    }
+    if(cropRatioLabel) cropRatioLabel.textContent="Rasio: "+(state.crop.aspect>=1?"Landscape":"Portrait");
+}
+[frameWidthInput,frameHeightInput].forEach(input=>{
+    if(input) input.addEventListener("input",syncCropFrameRatio);
+});
 
 if(cropResetBtn){
     cropResetBtn.addEventListener("click",()=>{
