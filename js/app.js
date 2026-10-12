@@ -912,8 +912,10 @@ function generateCollage() {
 
         let templatePlacements = createTemplatePlacements(queue);
 
-        // Active frames take priority over a saved example layout.
-        // A frame tied to a specific source must keep that source and crop.
+        // Frame crop tool can create a single empty frame before upload.
+        // Do not mistake that one frame for the entire canvas: unless every
+        // requested photo fits into explicit frames, auto-pack all photos
+        // across the full canvas. A saved example layout still takes priority.
         if (state.frames.length && !templatePlacements) {
             const usedIndexes = new Set();
             const framePlacements = [];
@@ -945,7 +947,11 @@ function generateCollage() {
                 });
             }
 
-            templatePlacements = framePlacements;
+            // Use manual frames only when they account for every requested
+            // photo. Otherwise the normal packing algorithm fills the canvas.
+            if (framePlacements.length === queue.length) {
+                templatePlacements = framePlacements;
+            }
         }
 
         if (state.templateOverflow?.length) {
