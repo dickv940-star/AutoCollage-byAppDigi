@@ -2352,3 +2352,67 @@ button:focus-visible, input:focus-visible, label:focus-within {
     .template-preview-meta { margin: 0; }
     .template-help { margin: 0; }
 }
+
+
+/* =========================================================
+   CANVAS PREVIEW RATIO FIX
+   The preview is scaled with one JS-calculated factor, never
+   constrained independently by max-width and max-height.
+========================================================= */
+.canvas-workspace {
+    min-width: 0;
+    min-height: 0;
+}
+.canvas-stage {
+    box-sizing: border-box;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.canvas-stage .canvas-wrapper {
+    box-sizing: content-box;
+    flex: 0 0 auto;
+    width: max-content;
+    height: max-content;
+    max-width: none;
+    max-height: none;
+    margin: auto;
+    overflow: visible;
+}
+.canvas-stage #collageCanvas {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: none !important;
+    max-height: none !important;
+    flex: 0 0 auto;
+    object-fit: fill;
+}
+@media (max-width: 760px) {
+    .canvas-workspace {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto auto;
+        overflow: visible;
+    }
+    .canvas-stage {
+        width: 100%;
+        height: clamp(320px, 58vh, 520px);
+        min-height: 320px;
+        max-height: none;
+        overflow: auto;
+        align-items: center;
+        justify-content: center;
+    }
+    .canvas-stage .canvas-wrapper {
+        max-width: none;
+        max-height: none;
+    }
+    .canvas-stage #collageCanvas {
+        max-width: none !important;
+        max-height: none !important;
+    }
+}
