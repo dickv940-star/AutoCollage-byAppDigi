@@ -2178,3 +2178,177 @@ button:focus-visible, input:focus-visible, label:focus-within {
     #cropModal .crop-stage::before { top: 7px; left: 7px; }
     #cropModal .crop-stage::after { left: 7px; bottom: 7px; font-size: 10px; }
 }
+
+
+/* =========================================================
+   COMPACT CANVAS + SAVED TEMPLATE SIDEBAR
+========================================================= */
+.canvas-workspace {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 224px;
+    align-items: stretch;
+    justify-content: stretch;
+    gap: 14px;
+    padding: 12px;
+    overflow: auto;
+}
+.canvas-stage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    overflow: auto;
+    padding: 4px;
+}
+.canvas-stage .canvas-wrapper {
+    flex: 0 0 auto;
+    max-width: 100%;
+    max-height: 100%;
+    margin: auto;
+}
+.canvas-stage #collageCanvas {
+    display: block;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    object-fit: contain;
+}
+.template-panel {
+    align-self: start;
+    min-width: 0;
+    max-height: 100%;
+    padding: 13px;
+    border: 1px solid #dfe4ed;
+    border-radius: 12px;
+    background: rgba(255,255,255,.96);
+    box-shadow: 0 4px 16px rgba(28,39,60,.07);
+    color: #202b3a;
+}
+.template-panel-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.template-panel-heading strong {
+    display: block;
+    font-size: 12px;
+    line-height: 1.35;
+}
+.template-panel-heading small {
+    display: block;
+    margin-top: 3px;
+    color: #8490a1;
+    font-size: 10px;
+}
+.template-status {
+    flex: 0 0 auto;
+    padding: 3px 6px;
+    border-radius: 99px;
+    background: #f0f2f7;
+    color: #7b8494;
+    font-size: 9px;
+    font-weight: 700;
+}
+.template-panel.has-template .template-status {
+    background: #e7f8ee;
+    color: #177245;
+}
+.template-preview-frame {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 180px;
+    padding: 9px;
+    border: 1px solid #edf0f5;
+    border-radius: 8px;
+    background: #f5f7fb;
+}
+#templatePreviewCanvas {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 260px;
+    border: 1px solid #d8deea;
+    background: #fff;
+    box-shadow: 0 3px 10px rgba(28,39,60,.08);
+}
+.template-preview-meta {
+    margin: 9px 0;
+    color: #657187;
+    font-size: 10px;
+    line-height: 1.45;
+}
+.template-clear-btn {
+    width: 100%;
+    margin: 0;
+    min-height: 32px;
+    padding: 7px 9px;
+    font-size: 10px;
+}
+.template-help {
+    margin: 9px 0 0;
+    color: #8a94a4;
+    font-size: 10px;
+    line-height: 1.5;
+}
+@media (max-width: 1100px) {
+    .canvas-workspace {
+        grid-template-columns: minmax(0, 1fr) 200px;
+        padding: 10px;
+        gap: 10px;
+        height: clamp(360px, 62vh, 680px);
+        min-height: 360px;
+    }
+    .template-panel { padding: 10px; }
+}
+@media (max-width: 760px) {
+    .canvas-workspace {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: minmax(280px, 1fr) auto;
+        height: auto;
+        min-height: 0;
+        max-height: none;
+        padding: 10px;
+        gap: 10px;
+        overflow: visible;
+    }
+    .canvas-stage {
+        min-height: 320px;
+        max-height: 58vh;
+        height: auto;
+        overflow: auto;
+        padding: 2px;
+    }
+    .canvas-stage .canvas-wrapper {
+        max-width: none;
+        max-height: none;
+    }
+    .canvas-stage #collageCanvas {
+        max-width: none !important;
+        max-height: none !important;
+    }
+    .template-panel {
+        display: grid;
+        grid-template-columns: 1fr minmax(90px, 150px);
+        align-items: center;
+        gap: 8px 12px;
+    }
+    .template-panel-heading,
+    .template-preview-meta,
+    .template-help,
+    .template-clear-btn { grid-column: 1; }
+    .template-preview-frame {
+        grid-column: 2;
+        grid-row: 1 / span 4;
+        min-height: 130px;
+        padding: 6px;
+    }
+    #templatePreviewCanvas { max-height: 170px; }
+    .template-panel-heading { margin: 0; }
+    .template-preview-meta { margin: 0; }
+    .template-help { margin: 0; }
+}
