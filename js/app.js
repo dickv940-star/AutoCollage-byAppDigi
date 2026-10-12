@@ -533,32 +533,19 @@ function packPhotos(queue, canvasW, canvasH, margin, gap) {
 }
 
 function applyAutoSpacing(result, canvasW, margin) {
-    if (!result.success) return result;
+    if (!result.success || !result.placements.length) return result;
 
-    const rows = [];
+    // Center the complete flexible layout as one group. Do not center each
+    // individual row/photo, because that would break the packing and could
+    // cause overlaps or push photos beyond the canvas.
+    const minX = Math.min(...result.placements.map(p => p.x));
+    const maxX = Math.max(...result.placements.map(p => p.x + p.width));
+    const usedWidth = maxX - minX;
+    const availableWidth = canvasW - margin * 2;
+    if (usedWidth > availableWidth) return result;
 
-    for (const item of result.placements) {
-        let r = rows.find(x => Math.abs(x.y - item.y) < 0.001);
-
-        if (!r) {
-            r = { y: item.y, items: [] };
-            rows.push(r);
-        }
-
-        r.items.push(item);
-    }
-
-    for (const r of rows) {
-        const minX = Math.min(...r.items.map(x => x.x));
-        const maxX = Math.max(...r.items.map(x => x.x + x.width));
-        const extra = canvasW - margin * 2 - (maxX - minX);
-
-        if (extra > 0) {
-            const offset = extra / 2;
-            r.items.forEach(x => x.x += offset);
-        }
-    }
-
+    const offset = margin + (availableWidth - usedWidth) / 2 - minX;
+    result.placements.forEach(p => { p.x += offset; });
     return result;
 }
 
