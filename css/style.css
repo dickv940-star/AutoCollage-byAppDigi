@@ -1960,7 +1960,8 @@ button:focus-visible, input:focus-visible, label:focus-within {
 ========================================================= */
 #cropModal.crop-modal {
     padding: 0;
-    background: rgba(8, 10, 14, .94);
+    /* Hide the main workspace canvas while editing so the crop view is not visually doubled. */
+    background: rgba(8, 10, 14, .995);
     backdrop-filter: blur(3px);
 }
 #cropModal .crop-dialog {
