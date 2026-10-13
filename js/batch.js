@@ -68,6 +68,23 @@
       tx.onerror = () => reject(tx.error || new Error("Gagal memperbarui antrean."));
     });
   }
+  async function completeGroup(historyRecord, sourceRecords, groupId) {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction([STORES.history, STORES.pending, STORES.failures], "readwrite");
+      tx.objectStore(STORES.history).put(historyRecord);
+      const pending = tx.objectStore(STORES.pending);
+      const failures = tx.objectStore(STORES.failures);
+      for (const record of sourceRecords) {
+        pending.delete(record.key);
+        failures.delete("source:" + record.key);
+      }
+      failures.delete("group:" + groupId);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error || new Error("Hasil tidak dapat disimpan dengan aman."));
+      tx.onabort = () => reject(tx.error || new Error("Penyimpanan hasil dibatalkan; file tetap berada di antrean."));
+    });
+  }
   async function clearStore(storeName) {
     const db = await openDb();
     return new Promise((resolve, reject) => {
@@ -217,34 +234,37 @@
     const oldCanvas = state.canvas;
     const oldMissing = state.templateMissing;
     const oldOverflow = state.templateOverflow;
-    state.canvas = canvasState;
-    state.templateMissing = [];
-    state.templateOverflow = [];
-    const queue = pair.map(source => ({ id: group.id, sizeKey: source.sizeKey, source, widthCm: source.width, heightCm: source.height }));
-    let placements = createTemplatePlacements(queue);
-    if (!placements || placements.length !== queue.length || state.templateOverflow?.length) {
-      const margin = Math.max(0, n(marginInput?.value, .5));
-      const gap = Math.max(0, n(gapInput?.value, .3));
-      let packed = packPhotos(queue, canvasState.widthCm, canvasState.heightCm, margin, gap);
-      if (!packed.success) throw new Error(packed.reason);
-      if (autoSpacing?.checked) packed = applyAutoSpacing(packed, canvasState.widthCm, margin);
-      placements = packed.placements;
+    try {
+      state.canvas = canvasState;
+      state.templateMissing = [];
+      state.templateOverflow = [];
+      const queue = pair.map(source => ({ id: group.id, sizeKey: source.sizeKey, source, widthCm: source.width, heightCm: source.height }));
+      let placements = createTemplatePlacements(queue);
+      if (!placements || placements.length !== queue.length || state.templateOverflow?.length) {
+        const margin = Math.max(0, n(marginInput?.value, .5));
+        const gap = Math.max(0, n(gapInput?.value, .3));
+        let packed = packPhotos(queue, canvasState.widthCm, canvasState.heightCm, margin, gap);
+        if (!packed.success) throw new Error(packed.reason);
+        if (autoSpacing?.checked) packed = applyAutoSpacing(packed, canvasState.widthCm, margin);
+        placements = packed.placements;
+      }
+      const valid = validatePlacements(placements, canvasState.widthCm, canvasState.heightCm);
+      if (!valid.valid) throw new Error(valid.message);
+      const ctx = canvasState.canvas.getContext("2d", { alpha: false });
+      if (!ctx) throw new Error("Tidak bisa membuat canvas hasil.");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvasState.canvas.width, canvasState.canvas.height);
+      for (const p of placements) {
+        if (!p.source?.image) throw new Error("Ada foto yang gagal dimuat.");
+        drawPhoto(ctx, p, cmToPx(p.x, canvasState.dpi), cmToPx(p.y, canvasState.dpi), cmToPx(p.width, canvasState.dpi), cmToPx(p.height, canvasState.dpi));
+      }
+      const blob = await makeCanvasBlob(canvasState.canvas);
+      return { blob, canvasState: { widthCm: canvasState.widthCm, heightCm: canvasState.heightCm, widthPx: canvasState.widthPx, heightPx: canvasState.heightPx, dpi: canvasState.dpi } };
+    } finally {
+      state.canvas = oldCanvas;
+      state.templateMissing = oldMissing;
+      state.templateOverflow = oldOverflow;
     }
-    const valid = validatePlacements(placements, canvasState.widthCm, canvasState.heightCm);
-    if (!valid.valid) throw new Error(valid.message);
-    const ctx = canvasState.canvas.getContext("2d", { alpha: false });
-    if (!ctx) throw new Error("Tidak bisa membuat canvas hasil.");
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvasState.canvas.width, canvasState.canvas.height);
-    for (const p of placements) {
-      if (!p.source?.image) throw new Error("Ada foto yang gagal dimuat.");
-      drawPhoto(ctx, p, cmToPx(p.x, canvasState.dpi), cmToPx(p.y, canvasState.dpi), cmToPx(p.width, canvasState.dpi), cmToPx(p.height, canvasState.dpi));
-    }
-    const blob = await makeCanvasBlob(canvasState.canvas);
-    state.canvas = oldCanvas;
-    state.templateMissing = oldMissing;
-    state.templateOverflow = oldOverflow;
-    return { blob, canvasState };
   }
   async function processOne(group) {
     const classified = classifyGroup(group);
@@ -263,13 +283,9 @@
       sourceKeys: classified.files.map(x => x.key),
       completedAt: new Date().toISOString()
     };
-    // History is committed first. Only after it is saved do we remove the source pair from the queue.
-    await putRecord(STORES.history, historyRecord);
-    for (const record of classified.files) {
-      await deleteRecord(STORES.pending, record.key);
-      await deleteRecord(STORES.failures, "source:" + record.key).catch(() => {});
-    }
-    await deleteRecord(STORES.failures, "group:" + group.id).catch(() => {});
+    // Save the result and remove its source pair in one IndexedDB transaction.
+    // If storage fails, the transaction rolls back and the source files stay queued.
+    await completeGroup(historyRecord, classified.files, group.id);
   }
   async function markFailure(group, reason, records = group.files) {
     const key = "group:" + group.id;
