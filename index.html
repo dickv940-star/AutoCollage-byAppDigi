@@ -620,6 +620,7 @@
     <input id="batchFolderInput" type="file" webkitdirectory directory multiple accept="image/jpeg,image/png,image/webp" hidden>
     <button type="button" class="btn btn-primary" id="batchStartBtn">▶ Mulai Batch</button>
     <button type="button" class="btn btn-secondary" id="batchRetryBtn">Coba Ulang Gagal</button>
+    <button type="button" class="btn btn-secondary" id="batchClearQueueBtn">Bersihkan Antrean</button>
   </div>
   <p class="batch-note" id="batchNotice" role="status">Pilih folder untuk memasukkan foto ke antrean. Contoh layout tersimpan akan digunakan jika ukuran canvas cocok.</p>
   <div class="batch-progress-wrap"><div class="batch-progress-meta"><span id="batchProgressLabel">Belum ada proses</span><strong id="batchProgressCount">0 / 0</strong></div><progress id="batchProgress" value="0" max="1"></progress></div>
@@ -642,7 +643,7 @@
 ========================================================= -->
 
 <script src="js/app.js?v=20261013-template-count-v11" defer></script>
-<script src="js/batch.js?v=20261013-batch-v6" defer></script>
+<script src="js/batch.js?v=20261013-batch-v7" defer></script>
 
 <!-- PHOTO CROP MODAL -->
 <div class="crop-modal hidden" id="cropModal">
