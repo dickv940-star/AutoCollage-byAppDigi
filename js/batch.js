@@ -230,7 +230,27 @@
     return { file, name: record.name, ...parsed, image, naturalWidth: image.naturalWidth, naturalHeight: image.naturalHeight };
   }
   async function makeBatchJpg(group, pair) {
-    const canvasState = createCanvasState();
+    // A saved template owns its canvas dimensions. The visible inputs reset to
+    // defaults after a page reload, so using createCanvasState() directly can
+    // silently bypass a template saved at another size.
+    const template = state.template;
+    let canvasState;
+    if (template && Array.isArray(template.frames) && template.frames.length) {
+      const widthCm = n(template.widthCm, n(canvasWidth?.value, 30));
+      const heightCm = n(template.heightCm, n(canvasHeight?.value, 40));
+      const dpi = n(template.dpi, n(dpiInput?.value, 300));
+      const widthPx = Math.round(cmToPx(widthCm, dpi));
+      const heightPx = Math.round(cmToPx(heightCm, dpi));
+      if ((widthPx * heightPx) / 1000000 > 100) {
+        throw new Error("Canvas pada contoh tersimpan terlalu besar. Turunkan DPI atau simpan ulang contoh dengan ukuran lebih kecil.");
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = widthPx;
+      canvas.height = heightPx;
+      canvasState = { canvas, widthCm, heightCm, dpi, widthPx, heightPx };
+    } else {
+      canvasState = createCanvasState();
+    }
     const oldCanvas = state.canvas;
     const oldMissing = state.templateMissing;
     const oldOverflow = state.templateOverflow;
@@ -241,6 +261,9 @@
       const queue = pair.map(source => ({ id: group.id, sizeKey: source.sizeKey, source, widthCm: source.width, heightCm: source.height }));
       let placements = createTemplatePlacements(queue);
       if (!placements || placements.length !== queue.length || state.templateOverflow?.length) {
+        if (template && Array.isArray(template.frames) && template.frames.length) {
+          throw new Error("Contoh tersimpan tidak memiliki posisi yang cocok untuk kedua ukuran foto. Pastikan contoh memiliki posisi 2x3 dan 3x4, lalu simpan ulang contoh.");
+        }
         const margin = Math.max(0, n(marginInput?.value, .5));
         const gap = Math.max(0, n(gapInput?.value, .3));
         let packed = packPhotos(queue, canvasState.widthCm, canvasState.heightCm, margin, gap);
