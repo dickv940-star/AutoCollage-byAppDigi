@@ -253,7 +253,7 @@
     // silently bypass a template saved at another size.
     const template = state.template;
     let canvasState;
-    if (templateMatchesCanvas) {
+    if (template && Array.isArray(template.frames) && template.frames.length) {
       const widthCm = n(template.widthCm, n(canvasWidth?.value, 30));
       const heightCm = n(template.heightCm, n(canvasHeight?.value, 40));
       const dpi = n(template.dpi, n(dpiInput?.value, 300));
