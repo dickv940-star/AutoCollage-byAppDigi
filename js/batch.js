@@ -204,6 +204,24 @@
   async function importFolder(fileListValue) {
     const files = Array.from(fileListValue || []);
     if (!files.length) return;
+
+    // A new folder is a new batch: remove stale pending/failure records first,
+    // but preserve History so previously completed JPGs remain downloadable.
+    await refresh();
+    if (pendingCache.length || failureCache.length) {
+      const ok = confirm(
+        "Antrean masih berisi file dari folder sebelumnya (" + pendingCache.length +
+        " file belum diproses, " + failureCache.length +
+        " masalah). Ganti antrean dengan folder baru? History hasil yang sudah berhasil tetap disimpan."
+      );
+      if (!ok) {
+        if (folderInput) folderInput.value = "";
+        setNotice("Folder baru dibatalkan. Antrean lama tetap dipertahankan.");
+        return;
+      }
+    }
+    await Promise.all([clearStore(STORES.pending), clearStore(STORES.failures)]);
+
     let added = 0;
     for (const file of files) {
       const relativePath = file.webkitRelativePath || file.name;
@@ -216,7 +234,7 @@
       added++;
     }
     await refresh();
-    setNotice("Folder dimasukkan: " + added + " file. File berhasil yang sudah tersimpan tidak perlu diproses ulang; klik Mulai Batch untuk melanjutkan.");
+    setNotice("Folder baru dimasukkan: " + added + " file. Antrean lama sudah diganti; History hasil sebelumnya tetap tersimpan.");
     if (folderInput) folderInput.value = "";
   }
   function makeCanvasBlob(canvas) {
@@ -235,7 +253,7 @@
     // silently bypass a template saved at another size.
     const template = state.template;
     let canvasState;
-    if (template && Array.isArray(template.frames) && template.frames.length) {
+    if (templateMatchesCanvas) {
       const widthCm = n(template.widthCm, n(canvasWidth?.value, 30));
       const heightCm = n(template.heightCm, n(canvasHeight?.value, 40));
       const dpi = n(template.dpi, n(dpiInput?.value, 300));
@@ -258,7 +276,35 @@
       state.canvas = canvasState;
       state.templateMissing = [];
       state.templateOverflow = [];
-      const queue = pair.map(source => ({ id: group.id, sizeKey: source.sizeKey, source, widthCm: source.width, heightCm: source.height }));
+      // The saved example stores one frame per printed copy. Repeat each
+      // source photo to match every frame of its size (e.g. 2x3 × 2 and
+      // 3x4 × 5), rather than always producing only one copy of each size.
+      const templateMatchesCanvas = template &&
+        Array.isArray(template.frames) && template.frames.length &&
+        Math.abs(n(template.widthCm) - canvasState.widthCm) <= 0.0001 &&
+        Math.abs(n(template.heightCm) - canvasState.heightCm) <= 0.0001;
+      let queue;
+      if (templateMatchesCanvas) {
+        const bySize = new Map(pair.map(source => [source.sizeKey, source]));
+        queue = template.frames.map(slot => {
+          const sizeKey = String(slot.sizeKey || (n(slot.width) + "x" + n(slot.height)));
+          const source = bySize.get(sizeKey);
+          if (!source) {
+            throw new Error("Contoh tersimpan memerlukan ukuran " + sizeKey +
+              " tetapi pasangan sumber tidak memilikinya. Pastikan contoh hanya memakai ukuran 2x3 dan 3x4.");
+          }
+          return { id: group.id, sizeKey, source, widthCm: source.width, heightCm: source.height };
+        });
+        const counts = queue.reduce((acc, item) => {
+          acc[item.sizeKey] = (acc[item.sizeKey] || 0) + 1;
+          return acc;
+        }, {});
+        if ((counts["2x3"] || 0) === 0 || (counts["3x4"] || 0) === 0) {
+          throw new Error("Contoh tersimpan harus memiliki setidaknya satu posisi 2x3 dan satu posisi 3x4.");
+        }
+      } else {
+        queue = pair.map(source => ({ id: group.id, sizeKey: source.sizeKey, source, widthCm: source.width, heightCm: source.height }));
+      }
       let placements = createTemplatePlacements(queue);
       if (!placements || placements.length !== queue.length || state.templateOverflow?.length) {
         if (template && Array.isArray(template.frames) && template.frames.length) {
