@@ -2,6 +2,11 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
+    <meta name="theme-color" content="#182230">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Auto Collage">
+    <link rel="manifest" href="./manifest.json">
+    <link rel="apple-touch-icon" href="./logo-autocollage-192x192.png">
 
     <meta
         name="viewport"
@@ -15,6 +20,12 @@
         href="css/style.css?v=20261012-canvas-single-v6"
     >
     <link rel="stylesheet" href="css/batch.css?v=20261013-batch-v1">
+<style>
+      .install-app-btn{border:0;border-radius:10px;padding:10px 14px;background:#2563eb;color:#fff;font-weight:700;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px #0002}
+      .install-app-btn:hover{background:#1d4ed8}
+      .install-app-btn:disabled{opacity:.8;cursor:default}
+      @media(max-width:640px){.install-app-btn{padding:8px 10px;font-size:12px}.header-inner{gap:10px}}
+    </style>
 </head>
 
 <body>
@@ -57,6 +68,7 @@
             <span id="systemStatus">
                 Ready
             </span>
+            <button type="button" class="install-app-btn" id="installAppBtn" aria-label="Instal Auto Collage">⬇ Instal Aplikasi</button>
 
         </div>
 
@@ -644,6 +656,7 @@
 
 <script src="js/app.js?v=20261013-template-count-v11" defer></script>
 <script src="js/batch.js?v=20261013-batch-v7" defer></script>
+<script src="js/install.js?v=20261013-pwa-v1" defer></script>
 
 <!-- PHOTO CROP MODAL -->
 <div class="crop-modal hidden" id="cropModal">
