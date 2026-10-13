@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#10243a">
+<meta name="description" content="Visa Photo Studio by AppDigi — siapkan ukuran foto visa dan paspor dari perangkat Anda.">
+<link rel="manifest" href="./manifest.json">
+<link rel="stylesheet" href="./style.css">
+<title>Visa Photo Studio — AppDigi</title>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="./"><span class="brand-mark">VS</span><span><strong>Visa Photo Studio</strong><small>by AppDigi</small></span></a>
+  <a class="backlink" href="../">Auto Collage ↗</a>
+</header>
+<main class="shell">
+  <section class="intro"><p class="eyebrow">PASSPORT · VISA · ID PHOTO</p><h1>Foto visa, siap sesuai ukuran.</h1><p>Pilih negara dan dokumen, atur potongan foto, lalu ekspor sesuai dimensi yang dipilih. Foto diproses di browser Anda.</p></section>
+  <section class="workspace">
+    <div class="controls card">
+      <h2>1. Persyaratan foto</h2>
+      <label for="profile">Negara / jenis dokumen</label>
+      <select id="profile">
+        <option value="usvisa">Amerika Serikat — Visa (2 × 2 inci)</option>
+        <option value="schengen">Schengen — Visa (35 × 45 mm)</option>
+        <option value="ukvisa">Britania Raya — Visa (35 × 45 mm)</option>
+        <option value="china">Tiongkok — Visa (33 × 48 mm)</option>
+        <option value="indiavisa">India — Visa (2 × 2 inci)</option>
+        <option value="indonesia">Indonesia — Visa (30 × 40 mm, latar merah pada profil sumber)</option>
+        <option value="australia">Australia — Visa (35 × 45 mm)</option>
+        <option value="canada">Kanada — Visa (35 × 45 mm)</option>
+        <option value="custom">Ukuran khusus</option>
+      </select>
+      <div class="spec-grid">
+        <div><span>Ukuran cetak</span><strong id="sizeLabel">51 × 51 mm</strong></div>
+        <div><span>Resolusi ekspor</span><strong id="pixelLabel">600 × 600 px</strong></div>
+      </div>
+      <p class="hint" id="profileHint">Ukuran mengacu pada katalog referensi. Periksa juga panduan resmi konsulat/portal visa sebelum mengirim.</p>
+      <div class="custom-grid" id="customFields" hidden>
+        <label>Lebar (mm)<input type="number" id="customWidth" min="5" max="150" value="35"></label>
+        <label>Tinggi (mm)<input type="number" id="customHeight" min="5" max="200" value="45"></label>
+        <label>Resolusi (DPI)<input type="number" id="dpi" min="72" max="1200" value="300"></label>
+      </div>
+      <h2 class="section-gap">2. Unggah foto</h2>
+      <label class="upload" for="photoInput"><span class="upload-icon">＋</span><strong>Pilih foto dari perangkat</strong><small>JPG, PNG, atau WEBP</small></label>
+      <input id="photoInput" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+      <div class="crop-tools">
+        <label for="zoom">Zoom potongan <output id="zoomValue">1.0×</output></label>
+        <input type="range" id="zoom" min="1" max="3" value="1" step="0.01">
+        <p class="hint">Geser foto pada pratinjau untuk mengatur posisi. Foto sumber tidak diubah.</p>
+      </div>
+      <button class="primary" id="exportBtn" disabled>Unduh Foto Visa (JPG)</button>
+      <button class="secondary" id="resetBtn" type="button">Reset foto</button>
+      <p class="privacy"><span>●</span> Foto diproses lokal di browser, tidak diunggah ke server oleh aplikasi ini.</p>
+    </div>
+    <div class="preview-column">
+      <div class="card preview-card">
+        <div class="preview-head"><div><h2>Pratinjau potongan</h2><p>Rasio akan menyesuaikan profil terpilih</p></div><span class="live">LIVE PREVIEW</span></div>
+        <div class="stage" id="stage"><div class="empty" id="emptyState"><span>▧</span><strong>Pratinjau foto</strong><small>Unggah foto untuk memulai</small></div><canvas id="preview" hidden></canvas></div>
+        <div class="preview-foot"><span id="imageInfo">Belum ada foto</span><span>Jangan gunakan filter atau retouch yang melanggar aturan visa.</span></div>
+      </div>
+      <div class="card checklist"><h2>Sebelum mengirim</h2><ul><li>Wajah terlihat jelas dan menghadap kamera.</li><li>Pastikan latar belakang dan ekspresi sesuai aturan negara tujuan.</li><li>Periksa ukuran file, format, dan aturan foto resmi terbaru.</li></ul><a href="https://id.visafoto.com/requirements" target="_blank" rel="noopener noreferrer">Buka katalog persyaratan Visafoto ↗</a></div>
+    </div>
+  </section>
+  <footer>Visa Photo Studio by AppDigi · Alat bantu ukuran foto, bukan layanan resmi pemerintah. Persyaratan dapat berubah.</footer>
+</main>
+<script src="./app.js" defer></script>
+</body></html>
