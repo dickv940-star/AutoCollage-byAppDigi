@@ -811,8 +811,16 @@ function saveTemplate() {
     if (!state.canvas) { alert("Buat atau crop canvas terlebih dahulu."); return; }
     const sourceFrames = state.generated && state.placements.length ? state.placements : state.frames;
     if (!sourceFrames.length) { alert("Buat minimal satu frame atau jalankan Auto Collage sebelum menyimpan contoh."); return; }
+    const frameCounts = {};
+    for (const p of sourceFrames) {
+        const key = p.sizeKey || p.source?.sizeKey || `${p.width}x${p.height}`;
+        frameCounts[key] = (frameCounts[key] || 0) + 1;
+    }
+    const enteredQuantities = Object.fromEntries(getQuantities());
     const template = {
-        version: 3, widthCm: state.canvas.widthCm, heightCm: state.canvas.heightCm, dpi: state.canvas.dpi,
+        version: 4, widthCm: state.canvas.widthCm, heightCm: state.canvas.heightCm, dpi: state.canvas.dpi,
+        // Save the requested print count separately from the manually saved positions.
+        quantities: Object.keys(enteredQuantities).length ? enteredQuantities : frameCounts,
         frames: sourceFrames.map((p, index) => ({
             index, sizeKey: p.sizeKey || p.source?.sizeKey || `${p.width}x${p.height}`,
             x: n(p.x), y: n(p.y), width: n(p.width), height: n(p.height),
