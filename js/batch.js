@@ -485,6 +485,32 @@
       setNotice("ZIP siap diunduh: " + records.length + " JPG.");
     } catch (err) { setNotice("Gagal membuat ZIP: " + (err.message || err), true); }
   }
+  async function clearQueue() {
+    if (running) {
+      setNotice("Batch sedang berjalan. Tunggu sampai proses selesai sebelum membersihkan antrean.", true);
+      return;
+    }
+    await refresh();
+    if (!pendingCache.length && !failureCache.length) {
+      setNotice("Antrean Belum Diproses dan daftar Gagal sudah kosong.");
+      return;
+    }
+    const ok = confirm(
+      "Bersihkan " + pendingCache.length + " file Belum Diproses dan " +
+      failureCache.length + " masalah dari antrean? Foto asli di komputer, History berhasil, dan contoh layout tidak dihapus."
+    );
+    if (!ok) return;
+    try {
+      await Promise.all([clearStore(STORES.pending), clearStore(STORES.failures)]);
+      await refresh();
+      if (progress) { progress.value = 0; progress.max = 1; }
+      if (progressLabel) progressLabel.textContent = "Antrean dibersihkan";
+      if (progressCount) progressCount.textContent = "0 / 0";
+      setNotice("Antrean lama dan daftar Gagal sudah dibersihkan. Foto asli, History, dan contoh layout tetap aman.");
+    } catch (err) {
+      setNotice("Gagal membersihkan antrean: " + (err.message || err), true);
+    }
+  }
   async function clearHistory() {
     if (!historyCache.length) return;
     if (!confirm("Hapus semua hasil History dari penyimpanan browser? File asli dan antrean tidak dihapus.")) return;
@@ -500,6 +526,7 @@
   if (retryBtn) retryBtn.addEventListener("click", () => runBatch(true));
   if (el("batchDownloadZipBtn")) el("batchDownloadZipBtn").addEventListener("click", downloadAllZip);
   if (el("batchClearHistoryBtn")) el("batchClearHistoryBtn").addEventListener("click", clearHistory);
+  if (el("batchClearQueueBtn")) el("batchClearQueueBtn").addEventListener("click", clearQueue);
   document.addEventListener("click", e => {
     const dl = e.target.closest("[data-batch-download]");
     if (dl) { downloadOne(dl.getAttribute("data-batch-download")); return; }
