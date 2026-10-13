@@ -14,6 +14,7 @@
         rel="stylesheet"
         href="css/style.css?v=20261012-canvas-single-v6"
     >
+    <link rel="stylesheet" href="css/batch.css?v=20261013-batch-v1">
 </head>
 
 <body>
@@ -609,6 +610,31 @@
 
 </main>
 
+<section class="batch-panel panel" id="batchPanel" aria-labelledby="batchTitle">
+  <div class="batch-heading">
+    <div><h2 id="batchTitle">Batch Auto Collage</h2><p>Proses folder foto secara otomatis, satu JPG untuk setiap nomor foto.</p></div>
+    <span class="batch-badge">2×3 + 3×4</span>
+  </div>
+  <div class="batch-upload-row">
+    <label class="batch-folder-picker" for="batchFolderInput"><span class="batch-folder-icon">＋</span><span><strong>Pilih folder foto</strong><small>Pilih folder berisi ratusan foto JPG, JPEG, atau PNG</small></span></label>
+    <input id="batchFolderInput" type="file" webkitdirectory directory multiple accept="image/jpeg,image/png,image/webp" hidden>
+    <button type="button" class="btn btn-primary" id="batchStartBtn">▶ Mulai Batch</button>
+    <button type="button" class="btn btn-secondary" id="batchRetryBtn">Coba Ulang Gagal</button>
+  </div>
+  <p class="batch-note" id="batchNotice" role="status">Pilih folder untuk memasukkan foto ke antrean. Contoh layout tersimpan akan digunakan jika ukuran canvas cocok.</p>
+  <div class="batch-progress-wrap"><div class="batch-progress-meta"><span id="batchProgressLabel">Belum ada proses</span><strong id="batchProgressCount">0 / 0</strong></div><progress id="batchProgress" value="0" max="1"></progress></div>
+  <div class="batch-stats">
+    <div><span>Belum diproses</span><strong id="batchPendingCount">0</strong></div>
+    <div><span>Gagal</span><strong id="batchFailedCount">0</strong></div>
+    <div><span>History berhasil</span><strong id="batchHistoryCount">0</strong></div>
+  </div>
+  <div class="batch-columns">
+    <section class="batch-list-card"><div class="batch-list-heading"><h3>Belum Diproses</h3><span id="batchPendingLabel">0 item</span></div><div class="batch-list" id="batchPendingList"><p class="batch-empty">Belum ada file dalam antrean.</p></div></section>
+    <section class="batch-list-card"><div class="batch-list-heading"><h3>Proses Gagal</h3><span id="batchFailedLabel">0 item</span></div><div class="batch-list" id="batchFailedList"><p class="batch-empty">Belum ada kegagalan.</p></div></section>
+    <section class="batch-list-card batch-history-card"><div class="batch-list-heading"><h3>History Berhasil</h3><span id="batchHistoryLabel">0 hasil</span></div><div class="batch-history-actions"><button type="button" class="btn btn-primary" id="batchDownloadZipBtn">Unduh Semua (ZIP)</button><button type="button" class="btn btn-secondary" id="batchClearHistoryBtn">Hapus History</button></div><div class="batch-list" id="batchHistoryList"><p class="batch-empty">Belum ada hasil berhasil.</p></div></section>
+  </div>
+  <p class="batch-footnote">Catatan: file asli di komputer tidak dihapus. Setelah berhasil, file sumber dikeluarkan dari antrean aplikasi; hasil JPG disimpan sementara di penyimpanan browser perangkat ini.</p>
+</section>
 
 
 <!-- =========================================================
@@ -616,6 +642,7 @@
 ========================================================= -->
 
 <script src="js/app.js?v=20261012-jpg-name-v10" defer></script>
+<script src="js/batch.js?v=20261013-batch-v1" defer></script>
 
 <!-- PHOTO CROP MODAL -->
 <div class="crop-modal hidden" id="cropModal">
