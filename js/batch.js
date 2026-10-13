@@ -286,22 +286,28 @@
       let queue;
       if (templateMatchesCanvas) {
         const bySize = new Map(pair.map(source => [source.sizeKey, source]));
-        queue = template.frames.map(slot => {
-          const sizeKey = String(slot.sizeKey || (n(slot.width) + "x" + n(slot.height)));
-          const source = bySize.get(sizeKey);
-          if (!source) {
-            throw new Error("Contoh tersimpan memerlukan ukuran " + sizeKey +
-              " tetapi pasangan sumber tidak memilikinya. Pastikan contoh hanya memakai ukuran 2x3 dan 3x4.");
-          }
-          return { id: group.id, sizeKey, source, widthCm: source.width, heightCm: source.height };
-        });
-        const counts = queue.reduce((acc, item) => {
-          acc[item.sizeKey] = (acc[item.sizeKey] || 0) + 1;
-          return acc;
-        }, {});
-        if ((counts["2x3"] || 0) === 0 || (counts["3x4"] || 0) === 0) {
-          throw new Error("Contoh tersimpan harus memiliki setidaknya satu posisi 2x3 dan satu posisi 3x4.");
+        const frameCounts = {};
+        for (const slot of template.frames) {
+          const key = String(slot.sizeKey || (n(slot.width) + "x" + n(slot.height)));
+          frameCounts[key] = (frameCounts[key] || 0) + 1;
         }
+        // Version 4 templates preserve the quantity fields explicitly. For
+        // older templates, infer counts from the saved frame list.
+        const savedCounts = template.quantities && typeof template.quantities === "object"
+          ? template.quantities : frameCounts;
+        queue = [];
+        for (const sizeKey of ["2x3", "3x4"]) {
+          const source = bySize.get(sizeKey);
+          const count = Math.max(0, Math.floor(n(savedCounts[sizeKey], frameCounts[sizeKey] || 0)));
+          if (count > 0 && !source) {
+            throw new Error("Contoh tersimpan memerlukan ukuran " + sizeKey +
+              " tetapi pasangan sumber tidak memilikinya.");
+          }
+          for (let i = 0; i < count; i++) {
+            queue.push({ id: group.id, sizeKey, source, widthCm: source?.width, heightCm: source?.height });
+          }
+        }
+        if (!queue.length) throw new Error("Contoh tersimpan tidak memiliki jumlah cetak 2x3 atau 3x4. Buka aplikasi utama, isi jumlah, lalu klik Simpan sebagai Contoh lagi.");
       } else {
         queue = pair.map(source => ({ id: group.id, sizeKey: source.sizeKey, source, widthCm: source.width, heightCm: source.height }));
       }
