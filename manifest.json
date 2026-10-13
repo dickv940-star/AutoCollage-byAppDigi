@@ -1,0 +1,21 @@
+{
+  "id": "./",
+  "name": "Auto Collage by AppDigi",
+  "short_name": "Auto Collage",
+  "description": "Susun foto otomatis untuk kebutuhan cetak, dengan layout dan proses batch.",
+  "lang": "id-ID",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#eef1f4",
+  "theme_color": "#182230",
+  "icons": [
+    {
+      "src": "logo-autocollage-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
