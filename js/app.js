@@ -264,8 +264,8 @@ function assignAutomaticPhotoSizes() {
         if (!match) return null;
         return {
             sizeKey,
-            width: n(match[1].replace(",", ".")),
-            height: n(match[2].replace(",", "."))
+            width: n(slot.width, n(match[1].replace(",", "."))),
+            height: n(slot.height, n(match[2].replace(",", ".")))
         };
     }).filter(Boolean);
 
@@ -778,7 +778,8 @@ function drawPhoto(ctx,item,x,y,w,h){
     ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip();
     ctx.translate(x+w/2,y+h/2);
     ctx.rotate(rotation*Math.PI/180);
-    drawPhotoRaw(ctx,item,-w/2,-h/2,w,h);
+    const quarterTurn = rotation === 90 || rotation === 270;
+    drawPhotoRaw(ctx,item,quarterTurn ? -h/2 : -w/2,quarterTurn ? -w/2 : -h/2,quarterTurn ? h : w,quarterTurn ? w : h);
     ctx.restore();
 }
 
