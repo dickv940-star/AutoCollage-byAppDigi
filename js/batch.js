@@ -556,11 +556,32 @@
     }
   }
   async function clearHistory() {
-    if (!historyCache.length) return;
-    if (!confirm("Hapus semua hasil History dari penyimpanan browser? File asli dan antrean tidak dihapus.")) return;
-    await clearStore(STORES.history);
-    await refresh();
-    setNotice("History berhasil dihapus dari penyimpanan browser.");
+    if (running) {
+      setNotice("History tidak dapat dihapus saat batch sedang berjalan. Tunggu proses selesai.", true);
+      return;
+    }
+    try {
+      // Read directly from IndexedDB so the decision never depends on a stale UI cache.
+      const records = await allRecords(STORES.history);
+      if (!records.length) {
+        await refresh();
+        setNotice("History sudah kosong. Tidak ada hasil yang perlu dihapus.");
+        return;
+      }
+      const ok = confirm("Hapus semua " + records.length + " hasil History dari penyimpanan browser? File asli dan antrean tidak dihapus.");
+      if (!ok) return;
+
+      await clearStore(STORES.history);
+      const remaining = await allRecords(STORES.history);
+      if (remaining.length) {
+        throw new Error("Masih ada " + remaining.length + " hasil di penyimpanan setelah penghapusan.");
+      }
+      await refresh();
+      setNotice(records.length + " hasil History berhasil dihapus dari penyimpanan browser.");
+    } catch (err) {
+      await refresh();
+      setNotice("Gagal menghapus History: " + (err?.message || err || "Kesalahan penyimpanan browser."), true);
+    }
   }
   const modeSelect = el("batchModeSelect");
   if (modeSelect) modeSelect.addEventListener("change", async () => {
