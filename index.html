@@ -385,7 +385,16 @@
             </div>
 
 
-            <div id="sizeControls">
+            <label class="upload-size-mode">
+    <span>Ukuran foto tanpa ukuran di nama file</span>
+    <select id="uploadSizeMode">
+        <option value="custom" selected>Custom · Ikuti rasio foto asli</option>
+        <option value="2x3">2 × 3 cm</option>
+        <option value="3x4">3 × 4 cm</option>
+    </select>
+    <small>Custom mempertahankan proporsi asli. Sisi pendek dimulai dari 3 cm; sisi panjang menyesuaikan rasio foto.</small>
+</label>
+<div id="sizeControls">
 
                 <div class="empty-state small">
                     Upload foto terlebih dahulu.
