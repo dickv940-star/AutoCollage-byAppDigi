@@ -285,26 +285,104 @@ function assignAutomaticPhotoSizes() {
    INSTANT TEMPLATE PREVIEW
    Foto langsung ditempatkan ke slot contoh setelah upload.
 ========================================================= */
+
 function populateSavedTemplateFrames() {
-    if (!state.template?.frames?.length || !state.canvas) return;
+    if (!state.canvas) syncCanvasToInputs();
+    if (!state.canvas) return;
+
     const usable = state.files.filter(item => item.valid && item.image);
-    if (!usable.length) return;
-    const slots = state.template.frames;
-    state.frames = slots.map((slot, index) => {
-        const source = usable[index] || null;
-        const width = n(slot.width, source?.width || 2);
-        const height = n(slot.height, source?.height || 3);
+    if (!usable.length) {
+        state.frames = [];
+        state.placements = [];
+        state.generated = false;
+        renderCollage();
+        return;
+    }
+
+    // Prefer the saved example; if none exists, use manually-created frames.
+    const savedSlots = state.template?.frames || [];
+    const manualSlots = state.frames || [];
+    const slots = savedSlots.length ? savedSlots : manualSlots;
+
+    const queue = usable.map((source, index) => {
+        const slot = slots[index] || null;
+        let width = n(slot?.width, n(source.width, 0));
+        let height = n(slot?.height, n(source.height, 0));
+        let sizeKey = String(slot?.sizeKey || source.sizeKey || "");
+
+        // With no saved/manual slot, use the original image orientation
+        // while keeping the app's standard 2x3 / 3x2 print dimensions.
+        if (!(width > 0 && height > 0)) {
+            const portrait = source.naturalHeight >= source.naturalWidth;
+            width = portrait ? 2 : 3;
+            height = portrait ? 3 : 2;
+            sizeKey = width + "x" + height;
+        }
+        if (!sizeKey || sizeKey === "auto") sizeKey = width + "x" + height;
+
         return {
-            _frameId: "template-frame-" + index,
-            sizeKey: slot.sizeKey || (width + "x" + height),
-            x: n(slot.x), y: n(slot.y), width, height,
-            source, crop: slot.crop || null, rotation: n(slot.rotation, 0)
+            id: source.id || "upload-" + (index + 1),
+            sizeKey,
+            source,
+            widthCm: width,
+            heightCm: height,
+            crop: slot?.crop || source.crop || null,
+            rotation: n(slot?.rotation, n(source.rotation, 0)),
+            _frameId: slot?._frameId || "upload-frame-" + index
         };
     });
-    state.placements = [];
-    state.generated = false;
+
+    let placements = null;
+
+    // Saved layout is authoritative: fill its positions first, then place any
+    // extra uploads into remaining canvas space without reusing a source.
+    if (savedSlots.length) {
+        placements = createTemplatePlacements(queue);
+        if (placements && state.templateOverflow?.length) {
+            const placedSources = new Set(placements.map(p => p.source));
+            const extras = queue.filter(item => !placedSources.has(item.source));
+            const packed = packPhotos(extras, state.canvas.widthCm, state.canvas.heightCm,
+                Math.max(0, n(marginInput?.value, .5)), Math.max(0, n(gapInput?.value, .3)));
+            if (packed.success) placements = placements.concat(packed.placements);
+        }
+    } else if (slots.length) {
+        placements = queue.map((item, index) => {
+            const slot = slots[index];
+            if (!slot) return null;
+            return {
+                ...item,
+                x: n(slot.x), y: n(slot.y),
+                width: n(slot.width, item.widthCm),
+                height: n(slot.height, item.heightCm)
+            };
+        }).filter(Boolean);
+    }
+
+    // No template/frames yet? Still show every uploaded image immediately.
+    if (!placements || !placements.length) {
+        const packed = packPhotos(queue, state.canvas.widthCm, state.canvas.heightCm,
+            Math.max(0, n(marginInput?.value, .5)), Math.max(0, n(gapInput?.value, .3)));
+        if (!packed.success) {
+            console.warn("Live upload preview:", packed.reason);
+            placements = queue.map((item, index) => ({
+                ...item,
+                x: 0,
+                y: Math.min(index * item.heightCm, Math.max(0, state.canvas.heightCm - item.heightCm)),
+                width: item.widthCm,
+                height: item.heightCm
+            }));
+        } else {
+            placements = packed.placements;
+        }
+    }
+
+    state.placements = placements;
+    state.generated = true;
+    state.selectedPlacement = null;
     renderCollage();
+    updateInfo();
 }
+
 
 /* =========================================================
    GROUP BY PHOTO NUMBER
