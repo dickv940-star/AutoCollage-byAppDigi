@@ -144,7 +144,10 @@
       const groups = [];
       for (let i = 0; i < sorted.length; i += 2) {
         const chunk = sorted.slice(i, i + 2);
-        const id = "seq-" + String(Math.floor(i / 2) + 1).padStart(5, "0");
+        const seed = String(chunk[0]?.key || chunk[0]?.relativePath || chunk[0]?.name || "") + "|" + String(chunk[0]?.importedAt || "");
+        let hash = 2166136261;
+        for (let j = 0; j < seed.length; j++) { hash ^= seed.charCodeAt(j); hash = Math.imul(hash, 16777619); }
+        const id = "seq-" + (hash >>> 0).toString(36) + "-" + String(Math.floor(i / 2) + 1);
         const labels = chunk.map(x => String(x.name || "Foto").replace(/\.[^.]+$/, ""));
         const label = labels.join(" + ");
         const files = chunk.map((record, index) => {
@@ -406,7 +409,7 @@
   async function markFailure(group, reason, records = group.files) {
     const key = "group:" + group.id;
     await putRecord(STORES.failures, {
-      key, groupId: group.id, title: "Nomor " + (group.label || group.id), reason,
+      key, groupId: group.id, title: (group.pairMode === "sequential" ? "Pasangan " : "Nomor ") + (group.label || group.id), reason,
       sourceNames: records.map(x => x.name), sourceKeys: records.map(x => x.key),
       failedAt: new Date().toISOString()
     });
@@ -447,7 +450,7 @@
       }
       await refresh();
       if (progressLabel) progressLabel.textContent = "Selesai";
-      setNotice("Batch selesai. Berhasil: " + success + " nomor; gagal/perlu diperiksa: " + (failed + invalid.length) + ". File gagal tetap ada di antrean dan tidak masuk History.");
+      setNotice("Batch selesai. Berhasil: " + success + (currentMode() === "sequential" ? " pasangan/kelompok" : " nomor") + "; gagal/perlu diperiksa: " + (failed + invalid.length) + ". File gagal tetap ada di antrean dan tidak masuk History.");
     } catch (err) {
       setNotice("Batch berhenti: " + (err.message || err), true);
     } finally {
