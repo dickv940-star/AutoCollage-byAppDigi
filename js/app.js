@@ -948,6 +948,7 @@ function renderPreview() {
         wrapper.style.setProperty("width", displayWidth);
         wrapper.style.setProperty("height", displayHeight);
     }
+    if(state.crop?.mode==="canvas") renderCanvasPhotoCrop();
 }
 
 // Re-fit after the workspace layout has actually settled, not only on window resize.
