@@ -132,12 +132,12 @@
         collator.compare(String(a.name || ""), String(b.name || "")) ||
         collator.compare(String(a.relativePath || ""), String(b.relativePath || ""))
       );
-      const templateSizes = [...new Set((state.template?.frames || []).map(slot =>
-        String(slot.sizeKey || (n(slot.width) + "x" + n(slot.height)))
-      ).filter(Boolean))];
-      const sizeKeys = templateSizes.length ? templateSizes : ["2x3", "3x4"];
-      if (sizeKeys.length === 1) sizeKeys.push(sizeKeys[0] === "2x3" ? "3x4" : "2x3");
-      const dimensions = key => {
+      const templateSlots = state.template?.frames || [];
+      const fallbackKeys = ["2x3", "3x4"];
+      const dimensions = (key, slot) => {
+        if (slot && n(slot.width) > 0 && n(slot.height) > 0) {
+          return { width: n(slot.width), height: n(slot.height) };
+        }
         const match = String(key).match(/^(\d+(?:[.,]\d+)?)x(\d+(?:[.,]\d+)?)$/i);
         return match ? { width: n(match[1].replace(",", ".")), height: n(match[2].replace(",", ".")) } : { width: 2, height: 3 };
       };
@@ -151,8 +151,10 @@
         const labels = chunk.map(x => String(x.name || "Foto").replace(/\.[^.]+$/, ""));
         const label = labels.join(" + ");
         const files = chunk.map((record, index) => {
-          const sizeKey = sizeKeys[Math.min(index, sizeKeys.length - 1)];
-          return { ...record, parsed: { valid: true, id, displayId: label, sizeKey, ...dimensions(sizeKey) } };
+          // Map each input to its corresponding saved frame, preserving orientation.
+          const slot = templateSlots[index] || templateSlots[templateSlots.length - 1] || null;
+          const sizeKey = slot ? String(slot.sizeKey || (n(slot.width) + "x" + n(slot.height))) : fallbackKeys[Math.min(index, fallbackKeys.length - 1)];
+          return { ...record, parsed: { valid: true, id, displayId: label, sizeKey, ...dimensions(sizeKey, slot) } };
         });
         groups.push({ id, label, files, pairMode: "sequential" });
       }
@@ -336,9 +338,15 @@
         const savedCounts = template.quantities && typeof template.quantities === "object"
           ? template.quantities : frameCounts;
         queue = [];
-        const queueSizes = group.pairMode === "sequential"
-          ? [...new Set(pair.map(source => source.sizeKey))]
-          : ["2x3", "3x4"];
+        if (group.pairMode === "sequential") {
+          // Each source is placed once; saved frames control dimensions, crop and rotation.
+          queue = pair.map(source => ({
+            id: group.id, sizeKey: source.sizeKey, source,
+            widthCm: source.width, heightCm: source.height,
+            crop: source.crop || null, rotation: n(source.rotation, 0)
+          }));
+        }
+        const queueSizes = group.pairMode === "sequential" ? [] : ["2x3", "3x4"];
         for (const sizeKey of queueSizes) {
           const source = bySize.get(sizeKey);
           const count = Math.max(0, Math.floor(n(savedCounts[sizeKey], frameCounts[sizeKey] || 0)));
