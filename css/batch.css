@@ -19,3 +19,11 @@
 .batch-footnote{margin:16px 0 0;color:#8993a3;font-size:11px;line-height:1.55}
 @media(max-width:1050px){.batch-columns{grid-template-columns:repeat(2,minmax(0,1fr))}.batch-history-card{grid-column:1/-1}.batch-history-card .batch-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.batch-panel{width:calc(100% - 20px);padding:14px;margin:14px auto 24px}.batch-heading h2{font-size:18px}.batch-upload-row{align-items:stretch}.batch-folder-picker{min-width:100%;box-sizing:border-box}.batch-upload-row>button{flex:1}.batch-stats{gap:6px}.batch-stats>div{padding:10px}.batch-stats span{font-size:10px}.batch-stats strong{font-size:20px}.batch-columns{grid-template-columns:1fr}.batch-history-card{grid-column:auto}.batch-history-card .batch-list{display:block}.batch-list{max-height:260px}}
+
+
+/* Two independent batch workflows */
+.batch-mode-row{display:grid;grid-template-columns:1fr;gap:8px;margin:16px 0;padding:14px 16px;border:1px solid var(--batch-border,#dbe2ea);border-radius:12px;background:var(--batch-soft,#f8fafc)}
+.batch-mode-row label{font-size:14px;color:var(--batch-text,#243247)}
+.batch-mode-select{width:100%;min-height:42px;padding:9px 12px;border:1px solid var(--batch-border,#cbd5e1);border-radius:9px;background:#fff;color:#182230;font:inherit;font-weight:600}
+.batch-mode-help{margin:0;color:var(--batch-muted,#64748b);font-size:12px;line-height:1.5}
+@media(min-width:720px){.batch-mode-row{grid-template-columns:minmax(180px,.35fr) minmax(260px,1fr);align-items:center}.batch-mode-help{grid-column:2}}
