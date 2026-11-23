@@ -885,6 +885,12 @@ function renderCollage() {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+    // Preserve a previously cropped/flattened canvas as the base layer.
+    // New frames and placements are drawn above it.
+    if (state.canvas.baseImage) {
+        ctx.drawImage(state.canvas.baseImage, 0, 0, canvas.width, canvas.height);
+    }
+
     const drawItems = state.placements.length ? state.placements : state.frames;
     for (const item of drawItems) {
         const x = cmToPx(item.x, dpi);
@@ -1935,11 +1941,22 @@ function saveCrop(){
             alert("Area crop belum valid. Silakan atur ulang crop.");
             return;
         }
-        const oldWidth=state.canvas.widthCm;
-        const oldHeight=state.canvas.heightCm;
-        const dpi=state.canvas.dpi;
-        const widthCm=Math.max(0.1,oldWidth*sr.width);
-        const heightCm=Math.max(0.1,oldHeight*sr.height);
+        const oldCanvas=state.canvas;
+        const oldWidth=oldCanvas.widthCm;
+        const oldHeight=oldCanvas.heightCm;
+        const dpi=oldCanvas.dpi;
+
+        // Convert the visible crop rectangle to exact source bitmap pixels.
+        // This keeps the cropped artwork instead of creating a blank canvas.
+        const sx=Math.max(0,Math.floor(sr.x*image.naturalWidth));
+        const sy=Math.max(0,Math.floor(sr.y*image.naturalHeight));
+        const ex=Math.min(image.naturalWidth,Math.ceil((sr.x+sr.width)*image.naturalWidth));
+        const ey=Math.min(image.naturalHeight,Math.ceil((sr.y+sr.height)*image.naturalHeight));
+        const sw=Math.max(1,ex-sx);
+        const sh=Math.max(1,ey-sy);
+
+        const widthCm=Math.max(0.1,oldWidth*(sw/image.naturalWidth));
+        const heightCm=Math.max(0.1,oldHeight*(sh/image.naturalHeight));
         const widthPx=Math.max(1,Math.round(cmToPx(widthCm,dpi)));
         const heightPx=Math.max(1,Math.round(cmToPx(heightCm,dpi)));
         if((widthPx*heightPx)/1000000>100){
@@ -1949,11 +1966,28 @@ function saveCrop(){
 
         if(canvasWidth) canvasWidth.value=widthCm.toFixed(2);
         if(canvasHeight) canvasHeight.value=heightCm.toFixed(2);
+
+        const croppedBase=document.createElement("canvas");
+        croppedBase.width=widthPx;
+        croppedBase.height=heightPx;
+        const baseCtx=croppedBase.getContext("2d");
+        if(!baseCtx){
+            alert("Tidak dapat membuat hasil crop. Silakan coba lagi.");
+            return;
+        }
+        baseCtx.fillStyle="#ffffff";
+        baseCtx.fillRect(0,0,widthPx,heightPx);
+        baseCtx.imageSmoothingEnabled=true;
+        if("imageSmoothingQuality" in baseCtx) baseCtx.imageSmoothingQuality="high";
+        baseCtx.drawImage(image,sx,sy,sw,sh,0,0,widthPx,heightPx);
+
         state.canvas=createCanvasState();
+        state.canvas.baseImage=croppedBase;
         state.canvasReady=true;
         state.frames=[];
         state.placements=[];
         state.generated=false;
+        state.selectedPlacement=null;
         closeCrop();
         renderCollage();
         updateInfo();
