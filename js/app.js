@@ -42,7 +42,15 @@ const state = {
         startY:0,
         startSelection:null,
         startOffsetX:0,
-        startOffsetY:0
+        startOffsetY:0,
+        mode:"modal",
+        canvasSelection:null,
+        canvasDragging:false,
+        canvasResizing:false,
+        resizeHandle:null,
+        startCanvasX:0,
+        startCanvasY:0,
+        startCanvasSelection:null
     }
 };
 
@@ -65,6 +73,9 @@ const resetBtn = $("#resetBtn");
 
 const previewCanvas = $("#collageCanvas");
 const canvasWorkspace = $("#canvasWorkspace");
+const canvasWrapper = $("#canvasWrapper");
+const canvasCropOverlay = $("#canvasCropOverlay");
+const canvasCropSelection = $("#canvasCropSelection");
 
 const zoomValue = $("#zoomValue");
 const zoomOutBtn = $("#zoomOutBtn");
@@ -1612,8 +1623,143 @@ function cropSourceRectFromSelection(){
     state.crop.sourceRect={x:left,y:top,width:right-left,height:bottom-top};
     return state.crop.sourceRect;
 }
+
+/* =========================================================
+   DIRECT CROP ON LIVE CANVAS (NON-DESTRUCTIVE)
+========================================================= */
+function canvasPreviewScale(){
+    if(!previewCanvas || !state.canvas?.canvas) return 1;
+    return previewCanvas.clientWidth / Math.max(1,state.canvas.canvas.width);
+}
+function canvasPlacementRect(p){
+    const scale=canvasPreviewScale(), dpi=state.canvas.dpi;
+    return {
+        x:cmToPx(p.x,dpi)*scale,
+        y:cmToPx(p.y,dpi)*scale,
+        width:cmToPx(p.width,dpi)*scale,
+        height:cmToPx(p.height,dpi)*scale
+    };
+}
+function openCanvasPhotoCrop(placement){
+    if(!placement?.source?.image || !state.generated || !canvasCropOverlay || !canvasCropSelection) return;
+    const r=canvasPlacementRect(placement);
+    if(!(r.width>0 && r.height>0)) return;
+    state.crop.item=placement.source;
+    state.crop.mode="canvas";
+    state.crop.aspect=placement.width/placement.height;
+    state.crop.canvasSelection={...r,photoRect:{...r}};
+    canvasCropOverlay.classList.remove("hidden");
+    renderCanvasPhotoCrop();
+}
+function renderCanvasPhotoCrop(){
+    const s=state.crop.canvasSelection;
+    if(!s || !canvasCropSelection || !previewCanvas) return;
+    canvasCropOverlay.style.width=previewCanvas.clientWidth+"px";
+    canvasCropOverlay.style.height=previewCanvas.clientHeight+"px";
+    canvasCropSelection.style.left=s.x+"px";
+    canvasCropSelection.style.top=s.y+"px";
+    canvasCropSelection.style.width=s.width+"px";
+    canvasCropSelection.style.height=s.height+"px";
+}
+function closeCanvasPhotoCrop(){
+    if(canvasCropOverlay) canvasCropOverlay.classList.add("hidden");
+    state.crop.mode="modal";
+    state.crop.canvasSelection=null;
+    state.crop.canvasDragging=false;
+    state.crop.canvasResizing=false;
+    state.crop.resizeHandle=null;
+}
+function canvasCropPoint(e){
+    const r=canvasCropOverlay.getBoundingClientRect();
+    return {x:e.clientX-r.left,y:e.clientY-r.top};
+}
+function canvasCropPointerDown(e){
+    const handle=e.target.closest(".canvas-crop-handle");
+    const s=state.crop.canvasSelection;
+    if(!s) return;
+    e.preventDefault(); e.stopPropagation();
+    const p=canvasCropPoint(e);
+    state.crop.startCanvasX=p.x; state.crop.startCanvasY=p.y;
+    state.crop.startCanvasSelection={...s,photoRect:{...s.photoRect}};
+    if(handle){
+        state.crop.canvasResizing=true;
+        state.crop.resizeHandle=[...handle.classList].find(c=>c.startsWith("canvas-crop-handle-"))?.replace("canvas-crop-handle-","");
+    }else if(e.target.closest("#canvasCropSelection")){
+        state.crop.canvasDragging=true;
+    }
+    try{canvasCropOverlay.setPointerCapture(e.pointerId)}catch{}
+}
+function canvasCropPointerMove(e){
+    if(!state.crop.canvasDragging && !state.crop.canvasResizing) return;
+    const s=state.crop.startCanvasSelection, p=canvasCropPoint(e), pr=s.photoRect;
+    const dx=p.x-state.crop.startCanvasX, dy=p.y-state.crop.startCanvasY;
+    if(state.crop.canvasDragging){
+        state.crop.canvasSelection={...s,
+            x:Math.max(pr.x,Math.min(pr.x+pr.width-s.width,s.x+dx)),
+            y:Math.max(pr.y,Math.min(pr.y+pr.height-s.height,s.y+dy))
+        };
+    }else{
+        const h=state.crop.resizeHandle||"se", ratio=state.crop.aspect;
+        let w=s.width, hh=s.height, x=s.x, y=s.y;
+        const delta=Math.abs(dx)>=Math.abs(dy)?dx:dy*ratio;
+        const next=Math.max(20,Math.min(
+            h.includes("w")||h.includes("e") ? pr.width : pr.height*ratio,
+            (h.includes("w")||h.includes("e") ? s.width : s.height*ratio)+
+            ((h.includes("w")||h.includes("n") ? -1 : 1)*delta)
+        ));
+        w=next; hh=w/ratio;
+        if(h.includes("w")) x=s.x+s.width-w;
+        if(h.includes("n")) y=s.y+s.height-hh;
+        if(x<pr.x){x=pr.x;w=s.x+s.width-x;hh=w/ratio;}
+        if(y<pr.y){y=pr.y;hh=s.y+s.height-y;w=hh*ratio;}
+        if(x+w>pr.x+pr.width){w=pr.x+pr.width-x;hh=w/ratio;}
+        if(y+hh>pr.y+pr.height){hh=pr.y+pr.height-y;w=hh*ratio;}
+        state.crop.canvasSelection={...s,x,y,width:w,height:hh};
+    }
+    renderCanvasPhotoCrop();
+}
+function canvasCropPointerUp(e){
+    state.crop.canvasDragging=false;
+    state.crop.canvasResizing=false;
+    state.crop.resizeHandle=null;
+    try{canvasCropOverlay.releasePointerCapture(e.pointerId)}catch{}
+}
+function applyCanvasPhotoCrop(){
+    const item=state.crop.item, s=state.crop.canvasSelection;
+    if(state.crop.mode!=="canvas" || !item || !s) return;
+    const pr=s.photoRect;
+    const x=Math.max(0,Math.min(1,(s.x-pr.x)/pr.width));
+    const y=Math.max(0,Math.min(1,(s.y-pr.y)/pr.height));
+    const w=Math.max(.0001,Math.min(1-x,s.width/pr.width));
+    const h=Math.max(.0001,Math.min(1-y,s.height/pr.height));
+    const previous=item.crop?.canvas?.sourceRect || {x:0,y:0,width:1,height:1};
+    item.crop={canvas:{
+        width:item.width,height:item.height,ratio:item.width/item.height,
+        sourceRect:{
+            x:previous.x+x*previous.width,
+            y:previous.y+y*previous.height,
+            width:w*previous.width,
+            height:h*previous.height
+        }
+    }};
+    closeCanvasPhotoCrop();
+    renderPairs();
+    renderCollage();
+}
+if(canvasCropOverlay){
+    canvasCropOverlay.addEventListener("pointerdown",canvasCropPointerDown);
+    canvasCropOverlay.addEventListener("pointermove",canvasCropPointerMove);
+    canvasCropOverlay.addEventListener("pointerup",canvasCropPointerUp);
+    canvasCropOverlay.addEventListener("pointercancel",canvasCropPointerUp);
+    canvasCropOverlay.addEventListener("lostpointercapture",canvasCropPointerUp);
+}
+
 function openCrop(item){
     if(!item)return;
+    if(state.generated && item.source?.image){
+        const live=state.placements.find(p=>p.source===item.source);
+        if(live){openCanvasPhotoCrop(live);return;}
+    }
     state.crop.item=item;
     const image=cropImageFor(item);
     const saved=item.crop?.canvas || item.source?.crop?.canvas || null;
@@ -2099,6 +2245,11 @@ if(cropSaveBtn)
     cropSaveBtn.addEventListener("click",saveCrop);
 
 document.addEventListener("keydown",e=>{
+    if(state.crop.mode==="canvas"){
+        if(e.key==="Escape"){e.preventDefault();closeCanvasPhotoCrop();return;}
+        if(e.key==="Enter"){e.preventDefault();applyCanvasPhotoCrop();return;}
+        return;
+    }
     if(cropModal?.classList.contains("hidden"))return;
 
     if(e.key==="Escape"){
@@ -2424,6 +2575,7 @@ if (resetBtn) {
         state.canvas = null;
         state.canvasReady = false;
         state.generated = false;
+        closeCanvasPhotoCrop();
 
         if (fileInput) fileInput.value = "";
         if (fileList) {
