@@ -19,7 +19,7 @@
         rel="stylesheet"
         href="css/style.css?v=20261012-canvas-single-v6"
     >
-    <link rel="stylesheet" href="css/batch.css?v=20261013-batch-v1">
+    <link rel="stylesheet" href="css/batch.css?v=20261123-batch-modes-v2">
 <style>
       .install-app-btn{border:0;border-radius:10px;padding:10px 14px;background:#2563eb;color:#fff;font-weight:700;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px #0002}
       .install-app-btn:hover{background:#1d4ed8}
@@ -627,6 +627,14 @@
     <div><h2 id="batchTitle">Batch Auto Collage</h2><p>Proses folder foto secara otomatis, satu JPG untuk setiap nomor foto.</p></div>
     <span class="batch-badge">2×3 + 3×4</span>
   </div>
+  <div class="batch-mode-row">
+    <label for="batchModeSelect"><strong>Mode Auto Collage</strong></label>
+    <select id="batchModeSelect" class="batch-mode-select">
+      <option value="school">Pas Foto Sekolah — cocokkan nama + ukuran 2×3 / 3×4</option>
+      <option value="sequential">Pasangan Berurutan — 1 + 2, 3 + 4, sisa tetap sendiri</option>
+    </select>
+    <p id="batchModeHelp" class="batch-mode-help">Gunakan contoh layout Pas Foto Sekolah yang tersimpan. File dengan nama dasar sama akan dipasangkan berdasarkan ukuran 2×3 dan 3×4.</p>
+  </div>
   <div class="batch-upload-row">
     <label class="batch-folder-picker" for="batchFolderInput"><span class="batch-folder-icon">＋</span><span><strong>Pilih folder foto</strong><small>Pilih folder berisi ratusan foto JPG, JPEG, atau PNG</small></span></label>
     <input id="batchFolderInput" type="file" webkitdirectory directory multiple accept="image/jpeg,image/png,image/webp" hidden>
@@ -654,8 +662,8 @@
      JAVASCRIPT
 ========================================================= -->
 
-<script src="js/app.js?v=20261013-template-count-v11" defer></script>
-<script src="js/batch.js?v=20261013-batch-v7" defer></script>
+<script src="js/app.js?v=20261123-template-modes-v12" defer></script>
+<script src="js/batch.js?v=20261123-sequential-pairing-v8" defer></script>
 <script src="js/install.js?v=20261013-pwa-v1" defer></script>
 
 <!-- PHOTO CROP MODAL -->
