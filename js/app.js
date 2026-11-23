@@ -835,7 +835,7 @@ function saveTemplate() {
     try {
         localStorage.setItem(templateStorageKey(), JSON.stringify(template));
         state.template = template; updateTemplateButton(); renderTemplatePreview();
-        alert("Contoh collage berhasil disimpan. Contoh ini digunakan untuk upload berikutnya selama ukuran canvas sesuai.");
+        alert("Contoh " + (document.querySelector("#batchModeSelect")?.value === "sequential" ? "Pasangan Berurutan" : "Pas Foto Sekolah") + " berhasil disimpan terpisah. Contoh ini digunakan saat mode tersebut dipilih dan ukuran canvas sesuai.");
     } catch (e) { console.error(e); alert("Gagal menyimpan contoh. Penyimpanan browser mungkin penuh."); }
 }
 
@@ -847,7 +847,7 @@ function clearTemplate() {
 
 function updateTemplateButton() {
     const btn = document.querySelector("#saveTemplateBtn");
-    if (btn) btn.textContent = state.template ? "Contoh Tersimpan ✓" : "Simpan sebagai Contoh";
+    if (btn) btn.textContent = state.template ? (document.querySelector("#batchModeSelect")?.value === "sequential" ? "Contoh Berurutan Tersimpan ✓" : "Contoh Sekolah Tersimpan ✓") : "Simpan sebagai Contoh";
 }
 
 function renderTemplatePreview() {
