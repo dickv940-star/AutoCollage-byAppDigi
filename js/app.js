@@ -59,6 +59,7 @@ const $ = s => document.querySelector(s);
 const fileInput = $("#photoInput");
 const fileList = $("#pairList");
 const sizeList = $("#sizeControls");
+const uploadSizeMode = $("#uploadSizeMode");
 
 const canvasWidth = $("#canvasWidth");
 const canvasHeight = $("#canvasHeight");
@@ -164,7 +165,8 @@ function parseFilename(filename) {
             displayId: name || "Foto",
             width: null,
             height: null,
-            sizeKey: "auto"
+            sizeKey: "auto",
+            explicitSize: false
         };
     }
 
@@ -180,7 +182,8 @@ function parseFilename(filename) {
         displayId: rawId,
         width,
         height,
-        sizeKey: `${width}x${height}`
+        sizeKey: `${width}x${height}`,
+        explicitSize: true
     };
 }
 /* =========================================================
@@ -266,29 +269,36 @@ async function processFiles(fileArray) {
    AUTO ASSIGN RANDOM-NAMED PHOTOS TO SAVED TEMPLATE SLOTS
 ========================================================= */
 function assignAutomaticPhotoSizes() {
-    const automatic = state.files.filter(item => item.valid && item.sizeKey === "auto");
+    const automatic = state.files.filter(item => item.valid && !item.explicitSize);
     if (!automatic.length) return;
-
     const slots = (state.template?.frames || []).map(slot => {
         const sizeKey = String(slot.sizeKey || (n(slot.width) + "x" + n(slot.height)));
         const match = sizeKey.match(/^(\d+(?:[.,]\d+)?)x(\d+(?:[.,]\d+)?)$/i);
         if (!match) return null;
-        return {
-            sizeKey,
-            width: n(slot.width, n(match[1].replace(",", "."))),
-            height: n(slot.height, n(match[2].replace(",", ".")))
-        };
+        return { sizeKey, width: n(slot.width, n(match[1].replace(",", "."))), height: n(slot.height, n(match[2].replace(",", "."))) };
     }).filter(Boolean);
-
-    const fallback = slots[0] || { sizeKey: "2x3", width: 2, height: 3 };
+    const selectedMode = uploadSizeMode?.value || "custom";
+    const shortEdgeCm = 3;
     automatic.forEach((item, index) => {
-        const slot = slots.length ? slots[index % slots.length] : fallback;
+        const slot = slots.length ? slots[index % slots.length] : null;
+        const naturalW = Math.max(1, n(item.naturalWidth, 1));
+        const naturalH = Math.max(1, n(item.naturalHeight, 1));
+        const portrait = naturalH >= naturalW;
+        let width, height, sizeKey, sizeLabel;
+        if (slot) { width = slot.width; height = slot.height; sizeKey = slot.sizeKey; sizeLabel = sizeKey; }
+        else if (selectedMode === "2x3") { width = 2; height = 3; sizeKey = "2x3"; sizeLabel = "2 × 3 cm"; }
+        else if (selectedMode === "3x4") { width = 3; height = 4; sizeKey = "3x4"; sizeLabel = "3 × 4 cm"; }
+        else {
+            width = portrait ? shortEdgeCm * naturalW / naturalH : shortEdgeCm;
+            height = portrait ? shortEdgeCm : shortEdgeCm * naturalH / naturalW;
+            width = Math.max(.1, width); height = Math.max(.1, height);
+            sizeKey = "custom-" + (index + 1);
+            sizeLabel = "Custom · " + width.toFixed(2) + " × " + height.toFixed(2) + " cm";
+        }
         item.id = "auto-" + (index + 1);
         item.displayId = item.name.replace(/\.[^/.]+$/, "") || ("Foto " + (index + 1));
-        item.sizeKey = slot.sizeKey;
-        item.width = slot.width;
-        item.height = slot.height;
-        item.autoAssigned = true;
+        item.sizeKey = sizeKey; item.width = width; item.height = height;
+        item.sizeLabel = sizeLabel; item.autoAssigned = true;
     });
 }
 
@@ -321,13 +331,10 @@ function populateSavedTemplateFrames() {
         let height = n(slot?.height, n(source.height, 0));
         let sizeKey = String(slot?.sizeKey || source.sizeKey || "");
 
-        // With no saved/manual slot, use the original image orientation
-        // while keeping the app's standard 2x3 / 3x2 print dimensions.
-        if (!(width > 0 && height > 0) || (!slot && !savedSlots.length && source.autoAssigned)) {
-            const portrait = source.naturalHeight >= source.naturalWidth;
-            width = portrait ? 2 : 3;
-            height = portrait ? 3 : 2;
-            sizeKey = width + "x" + height;
+        // Custom uploads retain their original aspect ratio.
+        if (!(width > 0 && height > 0)) {
+            const ratio = Math.max(.0001, n(source.naturalWidth, 2) / Math.max(1, n(source.naturalHeight, 3)));
+            height = 3; width = height * ratio;
         }
         if (!sizeKey || sizeKey === "auto") sizeKey = width + "x" + height;
 
@@ -417,7 +424,8 @@ function buildGroups() {
             state.sizes.set(item.sizeKey, {
                 key: item.sizeKey,
                 width: item.width,
-                height: item.height
+                height: item.height,
+                label: item.sizeLabel || item.sizeKey
             });
         }
     }
@@ -534,7 +542,7 @@ function renderSizeControls() {
         html += `
             <div class="size-row">
                 <div>
-                    <strong>${esc(size.key)}</strong>
+                    <strong>${esc(size.label || size.key)}</strong>
                     <small>${size.width} × ${size.height} cm</small>
                 </div>
                 <input
@@ -550,6 +558,13 @@ function renderSizeControls() {
     }
 
     sizeList.innerHTML = html;
+}
+
+if (uploadSizeMode) {
+    uploadSizeMode.addEventListener("change", () => {
+        assignAutomaticPhotoSizes(); buildGroups(); populateSavedTemplateFrames();
+        renderPairs(); renderSizeControls(); updateInfo();
+    });
 }
 
 function getQuantities() {
