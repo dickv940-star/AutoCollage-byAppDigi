@@ -137,43 +137,41 @@ function normalizePhotoId(value) {
 }
 
 function parseFilename(filename) {
-    const name = filename.replace(/\.[^/.]+$/, "").trim();
+    const name = String(filename || "").replace(/\\.[^/.]+$/, "").trim();
 
+    // Ukuran pada nama file bersifat opsional. Jika tersedia, tetap dipakai
+    // untuk mode Pas Foto Sekolah; jika tidak, foto diterima sebagai foto bebas.
     const sizeMatch = name.match(
-        /(\d+(?:[.,]\d+)?)\s*[xX×]\s*(\d+(?:[.,]\d+)?)/i
+        /(\\d+(?:[.,]\\d+)?)\\s*[xX×]\\s*(\\d+(?:[.,]\\d+)?)/i
     );
 
     if (!sizeMatch) {
+        const id = normalizePhotoId(name) || name || "foto";
         return {
-            valid: false,
-            id: normalizePhotoId(name),
-            displayId: name,
+            valid: true,
+            id,
+            displayId: name || "Foto",
             width: null,
             height: null,
-            sizeKey: null
+            sizeKey: "auto"
         };
     }
 
     const width = n(sizeMatch[1].replace(",", "."));
     const height = n(sizeMatch[2].replace(",", "."));
-
     const beforeSize = name.slice(0, sizeMatch.index).trim();
-    const afterSize = name.slice(
-        sizeMatch.index + sizeMatch[0].length
-    ).trim();
-
-    const rawId = beforeSize || afterSize;
+    const afterSize = name.slice(sizeMatch.index + sizeMatch[0].length).trim();
+    const rawId = beforeSize || afterSize || name;
 
     return {
         valid: true,
-        id: normalizePhotoId(rawId),
+        id: normalizePhotoId(rawId) || rawId,
         displayId: rawId,
         width,
         height,
         sizeKey: `${width}x${height}`
     };
 }
-
 /* =========================================================
    LOAD IMAGE
 ========================================================= */
