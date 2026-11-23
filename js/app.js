@@ -234,10 +234,41 @@ async function processFiles(fileArray) {
         state.files.push(item);
     }
 
+    assignAutomaticPhotoSizes();
     buildGroups();
     renderPairs();
     renderSizeControls();
     updateInfo();
+}
+
+/* =========================================================
+   AUTO ASSIGN RANDOM-NAMED PHOTOS TO SAVED TEMPLATE SLOTS
+========================================================= */
+function assignAutomaticPhotoSizes() {
+    const automatic = state.files.filter(item => item.valid && item.sizeKey === "auto");
+    if (!automatic.length) return;
+
+    const slots = (state.template?.frames || []).map(slot => {
+        const sizeKey = String(slot.sizeKey || (n(slot.width) + "x" + n(slot.height)));
+        const match = sizeKey.match(/^(\\d+(?:[.,]\\d+)?)x(\\d+(?:[.,]\\d+)?)$/i);
+        if (!match) return null;
+        return {
+            sizeKey,
+            width: n(match[1].replace(",", ".")),
+            height: n(match[2].replace(",", "."))
+        };
+    }).filter(Boolean);
+
+    const fallback = slots[0] || { sizeKey: "2x3", width: 2, height: 3 };
+    automatic.forEach((item, index) => {
+        const slot = slots.length ? slots[index % slots.length] : fallback;
+        item.id = "auto-" + (index + 1);
+        item.displayId = item.name.replace(/\\.[^/.]+$/, "") || ("Foto " + (index + 1));
+        item.sizeKey = slot.sizeKey;
+        item.width = slot.width;
+        item.height = slot.height;
+        item.autoAssigned = true;
+    });
 }
 
 /* =========================================================
@@ -255,6 +286,7 @@ function buildGroups() {
             state.groups.set(item.id, {
                 id: item.id,
                 displayId: item.displayId,
+                autoAssigned: !!item.autoAssigned,
                 files: new Map()
             });
         }
@@ -291,15 +323,15 @@ function renderPairs() {
     let html = "";
 
     for (const group of state.groups.values()) {
-        const sizeKeys = [...state.sizes.keys()];
-        const complete = sizeKeys.every(k => group.files.has(k));
+        const sizeKeys = group.autoAssigned ? [...group.files.keys()] : [...state.sizes.keys()];
+        const complete = group.autoAssigned || sizeKeys.every(k => group.files.has(k));
 
         html += `
             <div class="file-group">
                 <div class="file-group-header">
-                    <strong>Foto #${esc(group.id)}</strong>
+                    <strong>${group.autoAssigned ? "Foto " : "Foto #"}${esc(group.displayId || group.id)}</strong>
                     <span class="${complete ? "pair-ok" : "pair-warning"}">
-                        ${complete ? "✓ Lengkap" : "Tidak lengkap"}
+                        ${complete ? "✓ Siap" : "Tidak lengkap"}
                     </span>
                 </div>
                 <div class="file-group-files">
@@ -438,8 +470,10 @@ function createPrintQueue() {
             throw new Error("Tidak ada foto " + sizeKey + " yang valid.");
         }
 
-        for (let i = 0; i < quantity; i++) {
-            const selected = sources[i % sources.length];
+        const uniqueAutomaticSources = sources.length > 0 && sources.every(entry => entry.source.autoAssigned);
+        const requestedCount = uniqueAutomaticSources ? Math.min(quantity, sources.length) : quantity;
+        for (let i = 0; i < requestedCount; i++) {
+            const selected = uniqueAutomaticSources ? sources[i] : sources[i % sources.length];
 
             queue.push({
                 id: selected.id,
