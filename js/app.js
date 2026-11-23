@@ -209,6 +209,14 @@ async function processFiles(fileArray) {
     state.generated = false;
     state.selectedPlacement = null;
 
+    // Contoh tersimpan menentukan ukuran kertas dan DPI saat upload.
+    if (state.template) {
+        if (canvasWidth) canvasWidth.value = String(n(state.template.widthCm, n(canvasWidth.value, 30)));
+        if (canvasHeight) canvasHeight.value = String(n(state.template.heightCm, n(canvasHeight.value, 40)));
+        if (dpiInput) dpiInput.value = String(n(state.template.dpi, n(dpiInput.value, 300)));
+    }
+    syncCanvasToInputs();
+
     // Frame/layout tetap dipertahankan saat foto baru di-upload.
     // Jika contoh tersimpan tersedia, foto langsung mengisi slot sesuai urutan contoh.
     for (const file of files) {
