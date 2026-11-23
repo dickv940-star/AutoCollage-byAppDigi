@@ -207,9 +207,10 @@ async function processFiles(fileArray) {
     state.sizes.clear();
     state.placements = [];
     state.generated = false;
+    state.selectedPlacement = null;
 
     // Frame/layout tetap dipertahankan saat foto baru di-upload.
-    // Foto hanya mengisi frame yang sudah dibuat.
+    // Jika contoh tersimpan tersedia, foto langsung mengisi slot sesuai urutan contoh.
     for (const file of files) {
         const parsed = parseFilename(file.name);
 
@@ -236,6 +237,7 @@ async function processFiles(fileArray) {
 
     assignAutomaticPhotoSizes();
     buildGroups();
+    populateSavedTemplateFrames();
     renderPairs();
     renderSizeControls();
     updateInfo();
@@ -269,6 +271,31 @@ function assignAutomaticPhotoSizes() {
         item.height = slot.height;
         item.autoAssigned = true;
     });
+}
+
+/* =========================================================
+   INSTANT TEMPLATE PREVIEW
+   Foto langsung ditempatkan ke slot contoh setelah upload.
+========================================================= */
+function populateSavedTemplateFrames() {
+    if (!state.template?.frames?.length || !state.canvas) return;
+    const usable = state.files.filter(item => item.valid && item.image);
+    if (!usable.length) return;
+    const slots = state.template.frames;
+    state.frames = slots.map((slot, index) => {
+        const source = usable[index] || null;
+        const width = n(slot.width, source?.width || 2);
+        const height = n(slot.height, source?.height || 3);
+        return {
+            _frameId: "template-frame-" + index,
+            sizeKey: slot.sizeKey || (width + "x" + height),
+            x: n(slot.x), y: n(slot.y), width, height,
+            source, crop: slot.crop || null, rotation: n(slot.rotation, 0)
+        };
+    });
+    state.placements = [];
+    state.generated = false;
+    renderCollage();
 }
 
 /* =========================================================
@@ -677,7 +704,7 @@ function syncCanvasToInputs() {
     );
 }
 
-function drawPhoto(ctx,item,x,y,w,h){
+function drawPhotoRaw(ctx,item,x,y,w,h){
     if(!item.source.image)return;
 
     ctx.filter="none";
@@ -734,6 +761,19 @@ function drawPhoto(ctx,item,x,y,w,h){
     if(sr>tr){dw=w;dh=w/sr}else{dh=h;dw=h*sr}
     ctx.drawImage(img,x+(w-dw)/2,y+(h-dh)/2,dw,dh);
 }
+
+function drawPhoto(ctx,item,x,y,w,h){
+    const rotation=((n(item.rotation,0)%360)+360)%360;
+    if(!rotation){ drawPhotoRaw(ctx,item,x,y,w,h); return; }
+    ctx.save();
+    // Clip tetap mengikuti ukuran slot; hanya isi foto yang diputar.
+    ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip();
+    ctx.translate(x+w/2,y+h/2);
+    ctx.rotate(rotation*Math.PI/180);
+    drawPhotoRaw(ctx,item,-w/2,-h/2,w,h);
+    ctx.restore();
+}
+
 function renderCollage() {
     if (!state.canvas) return;
 
@@ -861,7 +901,8 @@ function saveTemplate() {
         frames: sourceFrames.map((p, index) => ({
             index, sizeKey: p.sizeKey || p.source?.sizeKey || `${p.width}x${p.height}`,
             x: n(p.x), y: n(p.y), width: n(p.width), height: n(p.height),
-            crop: p.crop ? JSON.parse(JSON.stringify(p.crop)) : null
+            crop: p.crop ? JSON.parse(JSON.stringify(p.crop)) : null,
+            rotation: n(p.rotation, 0)
         }))
     };
     try {
@@ -945,7 +986,7 @@ function createTemplatePlacements(queue) {
         if(index<0){missing.push(slot.sizeKey);continue;}
         used.add(index);
         const item=queue[index];
-        placements.push({...item,x:n(slot.x),y:n(slot.y),width:n(slot.width,item.widthCm),height:n(slot.height,item.heightCm),crop:slot.crop||item.crop||null});
+        placements.push({...item,x:n(slot.x),y:n(slot.y),width:n(slot.width,item.widthCm),height:n(slot.height,item.heightCm),crop:slot.crop||item.crop||null,rotation:n(slot.rotation,item.rotation||0)});
     }
     const margin=Math.max(0,n(marginInput?.value,.5)),gap=Math.max(0,n(gapInput?.value,.3));
     for(let i=0;i<queue.length;i++){
@@ -1043,7 +1084,8 @@ function generateCollage() {
                     y: frame.y,
                     width: frame.width,
                     height: frame.height,
-                    crop: frame.crop || item.crop || null
+                    crop: frame.crop || item.crop || null,
+                    rotation: n(frame.rotation, item.rotation || 0)
                 });
             }
 
@@ -1222,6 +1264,7 @@ function startWorkspaceDrag(e) {
     e.preventDefault();
 
     state.drag.active = true;
+    state.selectedPlacement = placement;
     state.drag.placement = placement;
     state.drag.startX = point.x;
     state.drag.startY = point.y;
@@ -1284,12 +1327,28 @@ function endWorkspaceDrag(e) {
 }
 
 if (previewCanvas) {
+    previewCanvas.style.touchAction = "none";
     previewCanvas.addEventListener("pointerdown", startWorkspaceDrag);
     previewCanvas.addEventListener("pointermove", moveWorkspaceDrag, { passive: false });
     previewCanvas.addEventListener("pointerup", endWorkspaceDrag);
     previewCanvas.addEventListener("pointercancel", endWorkspaceDrag);
     previewCanvas.addEventListener("lostpointercapture", endWorkspaceDrag);
 }
+
+function rotateSelectedPhoto(degrees) {
+    const target = state.selectedPlacement;
+    if (!target) { alert("Klik foto pada canvas terlebih dahulu untuk memilihnya."); return; }
+    target.rotation = ((n(target.rotation, 0) + degrees) % 360 + 360) % 360;
+    const linked = [...state.frames, ...state.placements].find(item =>
+        item !== target && (item._frameId && item._frameId === target._frameId ||
+        item.source && item.source === target.source)
+    );
+    if (linked) linked.rotation = target.rotation;
+    renderCollage();
+}
+document.querySelector("#rotatePhotoLeftBtn")?.addEventListener("click", () => rotateSelectedPhoto(-90));
+document.querySelector("#rotatePhotoRightBtn")?.addEventListener("click", () => rotateSelectedPhoto(90));
+
 
 /* =========================================================
    CROP CANVAS EDITOR
@@ -2274,6 +2333,7 @@ if (resetBtn) {
         state.sizes.clear();
         state.placements = [];
         state.frames = [];
+        state.selectedPlacement = null;
         state.canvas = null;
         state.canvasReady = false;
         state.generated = false;
