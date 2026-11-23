@@ -467,7 +467,6 @@ function renderPairs() {
                     <div class="file-row file-present">
                         <span>✓</span>
                         <span>${esc(item.name)}</span>
-                        <button type="button" class="crop-button${item.crop ? " cropped" : ""}" data-crop-id="${esc(item.id)}" data-crop-size="${esc(item.sizeKey)}">${item.crop ? "Crop ✓" : "Crop"}</button>
                     </div>
                   `
                 : `
@@ -961,7 +960,6 @@ function renderPreview() {
         wrapper.style.setProperty("width", displayWidth);
         wrapper.style.setProperty("height", displayHeight);
     }
-    if(state.crop?.mode==="canvas") renderCanvasPhotoCrop();
 }
 
 // Re-fit after the workspace layout has actually settled, not only on window resize.
@@ -2140,31 +2138,6 @@ document.addEventListener("keydown",e=>{
     }
 });
 
-if(fileList){
-    fileList.addEventListener("click",e=>{
-        const b=e.target.closest("[data-crop-id]");
-        if(!b)return;
-        e.preventDefault();
-        e.stopPropagation();
-        const g=state.groups.get(b.dataset.cropId);
-        const item=g?.files.get(b.dataset.cropSize);
-        if(!item)return;
-
-        let frame=state.frames.find(x=>x.source===item);
-        if(!frame){
-            const width=Math.max(.1,n(item.width,2)), height=Math.max(.1,n(item.height,3));
-            frame={
-                _frameId:"frame-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),
-                sizeKey:item.sizeKey,
-                x:Math.max(0,(n(state.canvas?.widthCm,30)-width)/2),
-                y:Math.max(0,(n(state.canvas?.heightCm,40)-height)/2),
-                width,height,source:item,crop:null
-            };
-            state.frames.push(frame);
-        }
-        openCrop(frame);
-    });
-}
 
 function openCanvasCrop(){
     try{
@@ -2205,7 +2178,14 @@ function openCanvasCrop(){
 }
 
 if(cropCanvasBtn)
-    cropCanvasBtn.addEventListener("click",openCanvasCrop);
+    cropCanvasBtn.addEventListener("click",()=>{
+        const selected=state.selectedPlacement;
+        if(selected && (selected.source?.image || selected.image)){
+            openCrop(selected);
+            return;
+        }
+        openCanvasCrop();
+    });
 
 if(workspaceGenerateBtn)
     workspaceGenerateBtn.addEventListener("click",generateCollage);
