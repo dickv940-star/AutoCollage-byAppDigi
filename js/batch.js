@@ -138,14 +138,14 @@
       const sizeKeys = templateSizes.length ? templateSizes : ["2x3", "3x4"];
       if (sizeKeys.length === 1) sizeKeys.push(sizeKeys[0] === "2x3" ? "3x4" : "2x3");
       const dimensions = key => {
-        const match = String(key).match(/^(\\d+(?:[.,]\\d+)?)x(\\d+(?:[.,]\\d+)?)$/i);
+        const match = String(key).match(/^(\d+(?:[.,]\d+)?)x(\d+(?:[.,]\d+)?)$/i);
         return match ? { width: n(match[1].replace(",", ".")), height: n(match[2].replace(",", ".")) } : { width: 2, height: 3 };
       };
       const groups = [];
       for (let i = 0; i < sorted.length; i += 2) {
         const chunk = sorted.slice(i, i + 2);
         const id = "seq-" + String(Math.floor(i / 2) + 1).padStart(5, "0");
-        const labels = chunk.map(x => String(x.name || "Foto").replace(/\\.[^.]+$/, ""));
+        const labels = chunk.map(x => String(x.name || "Foto").replace(/\.[^.]+$/, ""));
         const label = labels.join(" + ");
         const files = chunk.map((record, index) => {
           const sizeKey = sizeKeys[Math.min(index, sizeKeys.length - 1)];
