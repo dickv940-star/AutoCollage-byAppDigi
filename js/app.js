@@ -312,7 +312,7 @@ function populateSavedTemplateFrames() {
 
         // With no saved/manual slot, use the original image orientation
         // while keeping the app's standard 2x3 / 3x2 print dimensions.
-        if (!(width > 0 && height > 0)) {
+        if (!(width > 0 && height > 0) || (!slot && !savedSlots.length && source.autoAssigned)) {
             const portrait = source.naturalHeight >= source.naturalWidth;
             width = portrait ? 2 : 3;
             height = portrait ? 3 : 2;
