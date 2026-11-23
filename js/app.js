@@ -338,28 +338,20 @@ function populateSavedTemplateFrames() {
     // extra uploads into remaining canvas space without reusing a source.
     if (savedSlots.length) {
         placements = createTemplatePlacements(queue);
-        if (placements && state.templateOverflow?.length) {
-            const placedSources = new Set(placements.map(p => p.source));
-            const extras = queue.filter(item => !placedSources.has(item.source));
-            const packed = packPhotos(extras, state.canvas.widthCm, state.canvas.heightCm,
-                Math.max(0, n(marginInput?.value, .5)), Math.max(0, n(gapInput?.value, .3)));
-            if (packed.success) placements = placements.concat(packed.placements);
-        }
     } else if (slots.length) {
-        placements = queue.map((item, index) => {
+        placements = queue.slice(0, slots.length).map((item, index) => {
             const slot = slots[index];
-            if (!slot) return null;
             return {
                 ...item,
                 x: n(slot.x), y: n(slot.y),
                 width: n(slot.width, item.widthCm),
                 height: n(slot.height, item.heightCm)
             };
-        }).filter(Boolean);
+        });
     }
 
-    // No template/frames yet? Still show every uploaded image immediately.
-    if (!placements || !placements.length) {
+    // If there are too few saved frames, fall back to a full non-duplicating layout.
+    if (!placements || placements.length !== queue.length || state.templateOverflow?.length) {
         const packed = packPhotos(queue, state.canvas.widthCm, state.canvas.heightCm,
             Math.max(0, n(marginInput?.value, .5)), Math.max(0, n(gapInput?.value, .3)));
         if (!packed.success) {
