@@ -801,6 +801,14 @@ function renderCollage() {
 
         if (item.source?.image) {
             drawPhoto(ctx, item, x, y, w, h);
+            if (item === state.selectedPlacement) {
+                ctx.save();
+                ctx.strokeStyle = "#2563eb";
+                ctx.lineWidth = Math.max(3, dpi / 45);
+                ctx.setLineDash([Math.max(8, dpi / 24), Math.max(4, dpi / 48)]);
+                ctx.strokeRect(x, y, w, h);
+                ctx.restore();
+            }
         } else {
             ctx.save();
             ctx.fillStyle = "#e9edf2";
