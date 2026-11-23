@@ -2425,3 +2425,12 @@ button:focus-visible, input:focus-visible, label:focus-within {
         overflow: auto;
     }
 }
+
+
+/* Live canvas selection and photo manipulation */
+#collageCanvas { cursor: grab; touch-action: none; }
+#collageCanvas:active { cursor: grabbing; }
+#rotatePhotoLeftBtn, #rotatePhotoRightBtn { white-space: nowrap; }
+@media (max-width: 760px) {
+  #rotatePhotoLeftBtn, #rotatePhotoRightBtn { min-width: 42px; padding: 8px 9px; font-size: 11px; }
+}
