@@ -137,12 +137,12 @@ function normalizePhotoId(value) {
 }
 
 function parseFilename(filename) {
-    const name = String(filename || "").replace(/\\.[^/.]+$/, "").trim();
+    const name = String(filename || "").replace(/\.[^/.]+$/, "").trim();
 
     // Ukuran pada nama file bersifat opsional. Jika tersedia, tetap dipakai
     // untuk mode Pas Foto Sekolah; jika tidak, foto diterima sebagai foto bebas.
     const sizeMatch = name.match(
-        /(\\d+(?:[.,]\\d+)?)\\s*[xX×]\\s*(\\d+(?:[.,]\\d+)?)/i
+        /(\d+(?:[.,]\d+)?)\s*[xX×]\s*(\d+(?:[.,]\d+)?)/i
     );
 
     if (!sizeMatch) {
@@ -260,7 +260,7 @@ function assignAutomaticPhotoSizes() {
 
     const slots = (state.template?.frames || []).map(slot => {
         const sizeKey = String(slot.sizeKey || (n(slot.width) + "x" + n(slot.height)));
-        const match = sizeKey.match(/^(\\d+(?:[.,]\\d+)?)x(\\d+(?:[.,]\\d+)?)$/i);
+        const match = sizeKey.match(/^(\d+(?:[.,]\d+)?)x(\d+(?:[.,]\d+)?)$/i);
         if (!match) return null;
         return {
             sizeKey,
@@ -273,7 +273,7 @@ function assignAutomaticPhotoSizes() {
     automatic.forEach((item, index) => {
         const slot = slots.length ? slots[index % slots.length] : fallback;
         item.id = "auto-" + (index + 1);
-        item.displayId = item.name.replace(/\\.[^/.]+$/, "") || ("Foto " + (index + 1));
+        item.displayId = item.name.replace(/\.[^/.]+$/, "") || ("Foto " + (index + 1));
         item.sizeKey = slot.sizeKey;
         item.width = slot.width;
         item.height = slot.height;
