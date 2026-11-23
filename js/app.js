@@ -383,7 +383,7 @@ function renderPairs() {
 
     if (fileWarning) {
         const incomplete = [...state.groups.values()]
-            .filter(g => [...state.sizes.keys()].some(k => !g.files.has(k)));
+            .filter(g => !g.autoAssigned && [...state.sizes.keys()].some(k => !g.files.has(k)));
 
         fileWarning.textContent = incomplete.length
             ? "Ada pasangan foto yang belum lengkap. Foto tidak akan dipasangkan dengan nomor lain."
@@ -982,13 +982,14 @@ function generateCollage() {
             return;
         }
 
-        if (state.groups.size > MAX_IDS) {
-            alert(`Maksimal ${MAX_IDS} nomor foto berbeda.`);
+        const numberedGroupCount = [...state.groups.values()].filter(group => !group.autoAssigned).length;
+        if (numberedGroupCount > MAX_IDS) {
+            alert(`Maksimal ${MAX_IDS} nomor foto berbeda untuk mode pencocokan nama.`);
             return;
         }
 
         const incomplete = [...state.groups.values()]
-            .filter(g => [...state.sizes.keys()].some(k => !g.files.has(k)));
+            .filter(g => !g.autoAssigned && [...state.sizes.keys()].some(k => !g.files.has(k)));
 
         if (incomplete.length) {
             const names = incomplete.map(g => "#" + g.id).join(", ");
