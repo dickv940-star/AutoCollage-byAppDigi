@@ -122,18 +122,55 @@
       '<small>' + safeText(item.detail || item.relativePath || item.fileName || "") + '</small>' +
       '<span class="batch-item-status">' + safeText(status) + '</span>' + actions + '</div>';
   }
-  function groupPending(records) {
+  function currentMode() {
+    return el("batchModeSelect")?.value === "sequential" ? "sequential" : "school";
+  }
+  function groupPending(records, mode = currentMode()) {
+    if (mode === "sequential") {
+      const collator = new Intl.Collator("id", { numeric: true, sensitivity: "base" });
+      const sorted = records.slice().sort((a, b) =>
+        collator.compare(String(a.name || ""), String(b.name || "")) ||
+        collator.compare(String(a.relativePath || ""), String(b.relativePath || ""))
+      );
+      const templateSizes = [...new Set((state.template?.frames || []).map(slot =>
+        String(slot.sizeKey || (n(slot.width) + "x" + n(slot.height)))
+      ).filter(Boolean))];
+      const sizeKeys = templateSizes.length ? templateSizes : ["2x3", "3x4"];
+      if (sizeKeys.length === 1) sizeKeys.push(sizeKeys[0] === "2x3" ? "3x4" : "2x3");
+      const dimensions = key => {
+        const match = String(key).match(/^(\\d+(?:[.,]\\d+)?)x(\\d+(?:[.,]\\d+)?)$/i);
+        return match ? { width: n(match[1].replace(",", ".")), height: n(match[2].replace(",", ".")) } : { width: 2, height: 3 };
+      };
+      const groups = [];
+      for (let i = 0; i < sorted.length; i += 2) {
+        const chunk = sorted.slice(i, i + 2);
+        const id = "seq-" + String(Math.floor(i / 2) + 1).padStart(5, "0");
+        const labels = chunk.map(x => String(x.name || "Foto").replace(/\\.[^.]+$/, ""));
+        const label = labels.join(" + ");
+        const files = chunk.map((record, index) => {
+          const sizeKey = sizeKeys[Math.min(index, sizeKeys.length - 1)];
+          return { ...record, parsed: { valid: true, id, displayId: label, sizeKey, ...dimensions(sizeKey) } };
+        });
+        groups.push({ id, label, files, pairMode: "sequential" });
+      }
+      return { groups, invalid: [] };
+    }
+
     const groups = new Map();
     const invalid = [];
     for (const record of records) {
       const p = parseStored(record);
       if (!p.valid || !p.id) { invalid.push({ ...record, failureReason: "Nama file tidak memuat ukuran seperti 2x3 atau 3x4." }); continue; }
-      if (!groups.has(p.id)) groups.set(p.id, { id: p.id, files: [], label: p.displayId || p.id });
+      if (!groups.has(p.id)) groups.set(p.id, { id: p.id, files: [], label: p.displayId || p.id, pairMode: "school" });
       groups.get(p.id).files.push(record);
     }
     return { groups: [...groups.values()], invalid };
   }
   function classifyGroup(group) {
+    if (group.pairMode === "sequential") {
+      if (group.files.length === 1 || group.files.length === 2) return { ok: true, files: group.files };
+      return { ok: false, reason: "Pasangan berurutan hanya boleh berisi satu atau dua foto." };
+    }
     const bySize = new Map();
     for (const file of group.files) {
       const p = parseStored(file);
@@ -161,7 +198,7 @@
     }
   }
   function renderLists() {
-    const grouped = groupPending(pendingCache);
+    const grouped = groupPending(pendingCache, currentMode());
     const failedKeys = new Set(failureCache.map(f => f.key));
     const pendingGroups = grouped.groups.map(g => {
       const stateLabel = classifyGroup(g);
@@ -178,7 +215,7 @@
     if (el("batchFailedLabel")) el("batchFailedLabel").textContent = failureCache.length + " masalah";
     if (el("batchHistoryLabel")) el("batchHistoryLabel").textContent = historyCache.length + " hasil";
     if (pendingList) {
-      const blocks = pendingGroups.map(g => renderItem({ title: "Nomor " + g.label, detail: g.files.length + " file · " + g.reason }, g.failed ? "Perlu diperiksa" : "Menunggu"));
+      const blocks = pendingGroups.map(g => renderItem({ title: (g.pairMode === "sequential" ? "Pasangan " : "Nomor ") + g.label, detail: g.files.length + " file · " + g.reason }, g.failed ? "Perlu diperiksa" : "Menunggu"));
       for (const bad of grouped.invalid) blocks.push(renderItem({ title: bad.name, detail: bad.failureReason }, "Gagal"));
       pendingList.innerHTML = blocks.join("") || '<p class="batch-empty">Tidak ada file yang menunggu. File berhasil sudah dikeluarkan dari antrean.</p>';
     }
@@ -234,7 +271,7 @@
       added++;
     }
     await refresh();
-    setNotice("Folder baru dimasukkan: " + added + " file. Antrean lama sudah diganti; History hasil sebelumnya tetap tersimpan.");
+    setNotice("Folder baru dimasukkan: " + added + " file. Mode: " + (currentMode() === "sequential" ? "Pasangan Berurutan" : "Pas Foto Sekolah") + ". Antrean lama sudah diganti; History hasil sebelumnya tetap tersimpan.");
     if (folderInput) folderInput.value = "";
   }
   function makeCanvasBlob(canvas) {
@@ -296,10 +333,14 @@
         const savedCounts = template.quantities && typeof template.quantities === "object"
           ? template.quantities : frameCounts;
         queue = [];
-        for (const sizeKey of ["2x3", "3x4"]) {
+        const queueSizes = group.pairMode === "sequential"
+          ? [...new Set(pair.map(source => source.sizeKey))]
+          : ["2x3", "3x4"];
+        for (const sizeKey of queueSizes) {
           const source = bySize.get(sizeKey);
           const count = Math.max(0, Math.floor(n(savedCounts[sizeKey], frameCounts[sizeKey] || 0)));
           if (count > 0 && !source) {
+            if (group.pairMode === "sequential") continue;
             throw new Error("Contoh tersimpan memerlukan ukuran " + sizeKey +
               " tetapi pasangan sumber tidak memilikinya.");
           }
@@ -376,7 +417,7 @@
     if (!pendingCache.length) { setNotice("Antrean kosong. Pilih folder foto terlebih dahulu."); return; }
     running = true;
     renderLists();
-    const { groups, invalid } = groupPending(pendingCache);
+    const { groups, invalid } = groupPending(pendingCache, currentMode());
     const targets = onlyFailed
       ? groups.filter(g => failureCache.some(f => f.groupId === g.id))
       : groups.filter(g => !failureCache.some(f => f.groupId === g.id));
@@ -387,7 +428,7 @@
     if (progressCount) progressCount.textContent = "0 / " + total;
     try {
       for (const group of targets) {
-        if (progressLabel) progressLabel.textContent = "Memproses nomor " + group.label;
+        if (progressLabel) progressLabel.textContent = (group.pairMode === "sequential" ? "Memproses pasangan " : "Memproses nomor ") + group.label;
         try { await processOne(group); success++; }
         catch (err) { failed++; await markFailure(group, err.message || "Gagal membuat kolase."); }
         done++;
@@ -518,6 +559,15 @@
     await refresh();
     setNotice("History berhasil dihapus dari penyimpanan browser.");
   }
+  const modeSelect = el("batchModeSelect");
+  if (modeSelect) modeSelect.addEventListener("change", async () => {
+    const help = el("batchModeHelp");
+    if (help) help.textContent = currentMode() === "sequential"
+      ? "File diurutkan berdasarkan nama secara alami: 1 + 2, 3 + 4, dan seterusnya. Jika tersisa satu file, tetap dibuat sebagai hasil tunggal. Contoh layout mode ini disimpan terpisah."
+      : "File dengan nama dasar sama dipasangkan berdasarkan ukuran 2×3 dan 3×4. Contoh layout Pas Foto Sekolah disimpan terpisah dari mode berurutan.";
+    await refresh();
+    setNotice("Mode berubah ke " + (currentMode() === "sequential" ? "Pasangan Berurutan" : "Pas Foto Sekolah") + ". Contoh layout mode ini dimuat terpisah.");
+  });
   if (folderInput) folderInput.addEventListener("change", async e => {
     try { await importFolder(e.target.files); }
     catch (err) { setNotice("Gagal memasukkan folder: " + (err.message || err), true); }
