@@ -797,10 +797,15 @@ requestAnimationFrame(() => renderPreview());
 ========================================================= */
 
 const TEMPLATE_KEY = "autocollage-template-v1";
+function templateStorageKey() {
+    const mode = document.querySelector("#batchModeSelect")?.value || "school";
+    return mode === "sequential" ? "autocollage-template-sequential-v1" : TEMPLATE_KEY;
+}
 
 function loadTemplate() {
     try {
-        const raw = localStorage.getItem(TEMPLATE_KEY);
+        const key = templateStorageKey();
+        const raw = localStorage.getItem(key) || (key === TEMPLATE_KEY ? localStorage.getItem(TEMPLATE_KEY) : null);
         state.template = raw ? JSON.parse(raw) : null;
     } catch {
         state.template = null;
@@ -828,14 +833,14 @@ function saveTemplate() {
         }))
     };
     try {
-        localStorage.setItem(TEMPLATE_KEY, JSON.stringify(template));
+        localStorage.setItem(templateStorageKey(), JSON.stringify(template));
         state.template = template; updateTemplateButton(); renderTemplatePreview();
         alert("Contoh collage berhasil disimpan. Contoh ini digunakan untuk upload berikutnya selama ukuran canvas sesuai.");
     } catch (e) { console.error(e); alert("Gagal menyimpan contoh. Penyimpanan browser mungkin penuh."); }
 }
 
 function clearTemplate() {
-    try { localStorage.removeItem(TEMPLATE_KEY); } catch {}
+    try { localStorage.removeItem(templateStorageKey()); } catch {}
     state.template = null; state.templateMissing = []; state.templateOverflow = [];
     updateTemplateButton(); renderTemplatePreview();
 }
@@ -923,6 +928,16 @@ function createTemplatePlacements(queue) {
 }
 
 loadTemplate();
+const batchModeSelect = document.querySelector("#batchModeSelect");
+if (batchModeSelect) {
+    batchModeSelect.addEventListener("change", () => {
+        loadTemplate();
+        state.templateMissing = [];
+        state.templateOverflow = [];
+        updateTemplateButton();
+        renderTemplatePreview();
+    });
+}
 
 /* =========================================================
    GENERATE
